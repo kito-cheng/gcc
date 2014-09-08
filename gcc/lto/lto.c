@@ -3415,6 +3415,7 @@ lto_main (void)
   timevar_stop (TV_PHASE_SETUP);
   timevar_start (TV_PHASE_STREAM_IN);
 
+  read_option_from_files (num_in_fnames, in_fnames);
   /* Read all the symbols and call graph from all the files in the
      command line.  */
   read_cgraph_and_symbols (num_in_fnames, in_fnames);

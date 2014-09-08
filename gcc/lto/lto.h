@@ -69,4 +69,6 @@ struct lto_section_list
   struct lto_section_slot *first, *last;
 };
 
+void read_option_from_files (unsigned, const char **);
+
 #endif /* LTO_H */
