@@ -167,16 +167,14 @@ unknown_option_callback (const struct cl_decoded_option *decoded)
    handle_option.  */
 
 static bool
-lang_handle_option (struct gcc_options *opts,
-		    struct gcc_options *opts_set,
+lang_handle_option (struct gcc_options *opts ATTRIBUTE_UNUSED,
+		    struct gcc_options *opts_set ATTRIBUTE_UNUSED,
 		    const struct cl_decoded_option *decoded,
 		    unsigned int lang_mask ATTRIBUTE_UNUSED, int kind,
 		    location_t loc,
 		    const struct cl_option_handlers *handlers,
 		    diagnostic_context *dc)
 {
-  gcc_assert (opts == &global_options);
-  gcc_assert (opts_set == &global_options_set);
   gcc_assert (dc == global_dc);
   gcc_assert (decoded->canonical_option_num_elements <= 2);
   return lang_hooks.handle_option (decoded->opt_index, decoded->arg,

@@ -38,6 +38,24 @@ along with GCC; see the file COPYING3.  If not see
 #include "diagnostic.h"
 #include "lto-streamer.h"
 #include "toplev.h"
+#include "libiberty.h"
+
+/* LTO options for write out, write option from command line by default,
+   it's can be override by lto_set_write_options.  */
+
+static struct cl_decoded_option *write_options = NULL;
+static unsigned int write_options_count = 0;
+
+
+/* Set LTO options for write.  */
+
+void
+lto_set_write_options (struct cl_decoded_option *option,
+		       unsigned int options_count)
+{
+  write_options_count = options_count;
+  write_options = option;
+}
 
 /* Append the option piece OPT to the COLLECT_GCC_OPTIONS string
    set up by OB, appropriately quoted and separated by spaces
@@ -62,7 +80,7 @@ append_to_collect_gcc_options (struct obstack *ob,
   *first_p = false;
 }
 
-/* Write currently held options to an LTO IL section.  */
+/* Write options to an LTO IL section.  */
 
 void
 lto_write_options (void)
@@ -72,9 +90,33 @@ lto_write_options (void)
   unsigned int i, j;
   char *args;
   bool first_p = true;
+  struct gcc_options opts;
+  struct gcc_options opts_set;
+  struct gcc_options *lto_opts;
+  struct gcc_options *lto_opts_set;
 
   section_name = lto_get_section_name (LTO_section_opts, NULL, NULL);
   lto_begin_section (section_name, false);
+
+  if (!write_options)
+    {
+      /* Write option from command line if write_options not specified.  */
+      write_options = save_decoded_options;
+      write_options_count = save_decoded_options_count;
+
+      lto_opts = &global_options;
+      lto_opts_set = &global_options_set;
+    }
+  else
+    {
+      init_options_struct (&opts, &opts_set);
+      decode_options (&opts, &opts_set,
+		      write_options, write_options_count,
+		      UNKNOWN_LOCATION, global_dc);
+
+      lto_opts = &opts;
+      lto_opts_set = &opts_set;
+    }
 
   obstack_init (&temporary_obstack);
 
@@ -86,20 +128,20 @@ lto_write_options (void)
      function rather than per compilation unit.  */
   /* -fexceptions causes the EH machinery to be initialized, enabling
      generation of unwind data so that explicit throw() calls work.  */
-  if (!global_options_set.x_flag_exceptions
-      && global_options.x_flag_exceptions)
+  if (!lto_opts_set->x_flag_exceptions
+      && lto_opts->x_flag_exceptions)
     append_to_collect_gcc_options (&temporary_obstack, &first_p,
 				   "-fexceptions");
   /* -fnon-call-exceptions changes the generation of exception
       regions.  It is enabled implicitly by the Go frontend.  */
-  if (!global_options_set.x_flag_non_call_exceptions
-      && global_options.x_flag_non_call_exceptions)
+  if (!lto_opts_set->x_flag_non_call_exceptions
+      && lto_opts->x_flag_non_call_exceptions)
     append_to_collect_gcc_options (&temporary_obstack, &first_p,
 				   "-fnon-call-exceptions");
   /* The default -ffp-contract changes depending on the language
      standard.  Pass thru conservative standard settings.  */
-  if (!global_options_set.x_flag_fp_contract_mode)
-    switch (global_options.x_flag_fp_contract_mode)
+  if (!lto_opts_set->x_flag_fp_contract_mode)
+    switch (lto_opts->x_flag_fp_contract_mode)
       {
       case FP_CONTRACT_OFF:
 	append_to_collect_gcc_options (&temporary_obstack, &first_p,
@@ -117,21 +159,21 @@ lto_write_options (void)
       }
   /* We need to merge -f[no-]strict-overflow, -f[no-]wrapv and -f[no-]trapv
      conservatively, so stream out their defaults.  */
-  if (!global_options_set.x_flag_wrapv
-      && global_options.x_flag_wrapv)
+  if (!lto_opts_set->x_flag_wrapv
+      && lto_opts->x_flag_wrapv)
     append_to_collect_gcc_options (&temporary_obstack, &first_p, "-fwrapv");
-  if (!global_options_set.x_flag_trapv
-      && !global_options.x_flag_trapv)
+  if (!lto_opts_set->x_flag_trapv
+      && !lto_opts->x_flag_trapv)
     append_to_collect_gcc_options (&temporary_obstack, &first_p, "-fno-trapv");
-  if (!global_options_set.x_flag_strict_overflow
-      && !global_options.x_flag_strict_overflow)
+  if (!lto_opts_set->x_flag_strict_overflow
+      && !lto_opts->x_flag_strict_overflow)
     append_to_collect_gcc_options (&temporary_obstack, &first_p,
 			       "-fno-strict-overflow");
 
   /* Output explicitly passed options.  */
-  for (i = 1; i < save_decoded_options_count; ++i)
+  for (i = 0; i < write_options_count; ++i)
     {
-      struct cl_decoded_option *option = &save_decoded_options[i];
+      struct cl_decoded_option *option = &write_options[i];
 
       /* Skip explicitly some common options that we do not need.  */
       switch (option->opt_index)

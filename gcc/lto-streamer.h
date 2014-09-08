@@ -840,6 +840,7 @@ extern tree lto_symtab_prevailing_decl (tree decl);
 
 
 /* In lto-opts.c.  */
+extern void lto_set_write_options (struct cl_decoded_option *, unsigned int);
 extern void lto_write_options (void);
 
 
