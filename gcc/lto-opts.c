@@ -110,6 +110,7 @@ lto_write_options (void)
   else
     {
       init_options_struct (&opts, &opts_set);
+
       decode_options (&opts, &opts_set,
 		      write_options, write_options_count,
 		      UNKNOWN_LOCATION, global_dc);
@@ -183,6 +184,7 @@ lto_write_options (void)
 	case OPT_SPECIAL_ignore:
 	case OPT_SPECIAL_program_name:
 	case OPT_SPECIAL_input_file:
+	case OPT_flto:
 	  continue;
 
 	default:

@@ -92,7 +92,8 @@ decode_option_string (const char *options,
   argv = XOBFINISH (&argv_obstack, const char **);
 
   decode_cmdline_options_to_array (argc, (const char **)argv,
-				   CL_LANG_ALL,
+				   CL_LANG_ALL | CL_TARGET | CL_COMMON,
+//				   CL_LANG_ALL,
 				   decoded_options, decoded_options_count);
   obstack_free (&argv_obstack, NULL);
 
@@ -159,7 +160,7 @@ merge_and_complain (struct cl_decoded_option **decoded_options,
 	  break;
 
 	default:
-	  if (!(cl_options[foption->opt_index].flags & CL_TARGET))
+	  if (!(cl_options[foption->opt_index].flags & CL_TARGET | CL_COMMON))
 	    break;
 
 	  /* Fallthru.  */
@@ -400,6 +401,7 @@ void read_option_from_files (unsigned nfiles, const char **fnames)
       struct cl_decoded_option *option = &final_decoded_options[i];
       for (j = 0; j < option->canonical_option_num_elements; ++j)
 	fprintf (stderr, "%s ", option->canonical_option[j]);
+      fprintf (stderr, "  error : %d\n", option->errors);
     }
   fprintf (stderr, "\n");
 #endif
