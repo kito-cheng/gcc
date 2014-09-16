@@ -98,7 +98,7 @@ along with GCC; see the file COPYING3.  If not see
 
 static void general_init (const char *);
 static void do_compile (void);
-static void process_options (void);
+//static void process_options (void);
 static void backend_init (void);
 static int lang_dependent_init (const char *);
 static void init_asm_output (const char *);
@@ -1222,7 +1222,7 @@ init_alignments (void)
 }
 
 /* Process the options that have been parsed.  */
-static void
+void
 process_options (void)
 {
   /* Just in case lang_hooks.post_options ends up calling a debug_hook.

@@ -4281,17 +4281,20 @@ ix86_option_override_internal (bool main_args_p,
 static void
 ix86_option_override (void)
 {
+#if 0
   opt_pass *pass_insert_vzeroupper = make_pass_insert_vzeroupper (g);
   static struct register_pass_info insert_vzeroupper_info
     = { pass_insert_vzeroupper, "reload",
 	1, PASS_POS_INSERT_AFTER
       };
+#endif
 
   ix86_option_override_internal (true, &global_options, &global_options_set);
 
-
+#if 0
   /* This needs to be done at start up.  It's convenient to do it here.  */
   register_pass (&insert_vzeroupper_info);
+#endif
 }
 
 /* Update register usage after having seen the compiler flags.  */

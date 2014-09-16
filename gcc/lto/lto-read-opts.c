@@ -299,6 +299,22 @@ merge_and_complain (struct cl_decoded_option **decoded_options,
 #define DEBUG
 #undef DEBUG
 
+void debug_options (struct cl_decoded_option *opts, unsigned int optcount)
+{
+  unsigned i, j;
+  fprintf (stderr, "Options:\n");
+  for (i = 1; i < optcount; ++i)
+    {
+      struct cl_decoded_option *option = &opts[i];
+      for (j = 0; j < option->canonical_option_num_elements; ++j)
+	fprintf (stderr, "%s ", option->canonical_option[j]);
+      fprintf (stderr, "  error : %d\n", option->errors);
+    }
+  fprintf (stderr, "\n");
+
+}
+
+extern void process_options (void);
 void read_option_from_files (unsigned nfiles, const char **fnames)
 {
   unsigned i;
@@ -411,4 +427,6 @@ void read_option_from_files (unsigned nfiles, const char **fnames)
   decode_options (&global_options, &global_options_set,
 		  final_decoded_options, final_decoded_options_count,
 		  UNKNOWN_LOCATION, global_dc);
+  handle_common_deferred_options ();
+  process_options ();
 }

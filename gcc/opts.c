@@ -275,8 +275,13 @@ void
 init_options_struct (struct gcc_options *opts, struct gcc_options *opts_set)
 {
   size_t num_params = get_num_compiler_params ();
+  static bool inited = false;
 
-  gcc_obstack_init (&opts_obstack);
+  if (!inited)
+    {
+      inited = true;
+      gcc_obstack_init (&opts_obstack);
+    }
 
   *opts = global_options_init;
 

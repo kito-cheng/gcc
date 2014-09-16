@@ -82,6 +82,7 @@ append_to_collect_gcc_options (struct obstack *ob,
 
 /* Write options to an LTO IL section.  */
 
+extern void process_options (void);
 void
 lto_write_options (void)
 {
@@ -114,6 +115,9 @@ lto_write_options (void)
       decode_options (&opts, &opts_set,
 		      write_options, write_options_count,
 		      UNKNOWN_LOCATION, global_dc);
+
+      handle_common_deferred_options ();
+      process_options ();
 
       lto_opts = &opts;
       lto_opts_set = &opts_set;
