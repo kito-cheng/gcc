@@ -429,4 +429,6 @@ void read_option_from_files (unsigned nfiles, const char **fnames)
 		  UNKNOWN_LOCATION, global_dc);
   handle_common_deferred_options ();
   process_options ();
+  if (!flag_wpa)
+    (*debug_hooks->init) (main_input_filename);
 }
