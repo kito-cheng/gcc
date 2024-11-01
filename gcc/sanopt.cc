@@ -1321,6 +1321,9 @@ pass_sanopt::execute (function *fun)
 	  }
     }
 
+  if (asan_num_accesses)
+    asan_maybe_insert_dynamic_shadow_at_function_entry (fun);
+
   if (contains_asan_mark)
     {
       sanitize_asan_mark_unpoison ();
