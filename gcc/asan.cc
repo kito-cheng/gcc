@@ -523,7 +523,6 @@ asan_maybe_insert_dynamic_shadow_at_function_entry (function *fun)
   tree lhs = create_tmp_var (pointer_sized_int_node,
 			     "__local_asan_shadow_memory_dynamic_address");
 
-  tree dynamic_offset = get_asan_shadow_memory_dynamic_address_decl ();
   g = gimple_build_assign (lhs, get_asan_shadow_memory_dynamic_address_decl ());
   gimple_set_location (g, fun->function_start_locus);
   gsi = gsi_after_labels (single_succ (ENTRY_BLOCK_PTR_FOR_FN (fun)));
@@ -2620,7 +2619,7 @@ build_shadow_mem_access (gimple_stmt_iterator *gsi, location_t location,
 {
   tree t, uintptr_type = TREE_TYPE (base_addr);
   tree shadow_type = TREE_TYPE (shadow_ptr_type);
-  gimple *g, *g2;
+  gimple *g;
 
   t = build_int_cst (uintptr_type, ASAN_SHADOW_SHIFT);
   g = gimple_build_assign (make_ssa_name (uintptr_type), RSHIFT_EXPR,
