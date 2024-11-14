@@ -518,15 +518,14 @@ asan_maybe_insert_dynamic_shadow_at_function_entry (function *fun)
     return;
 
   gimple *g;
-  gimple_stmt_iterator gsi;
 
   tree lhs = create_tmp_var (pointer_sized_int_node,
 			     "__local_asan_shadow_memory_dynamic_address");
 
   g = gimple_build_assign (lhs, get_asan_shadow_memory_dynamic_address_decl ());
   gimple_set_location (g, fun->function_start_locus);
-  gsi = gsi_after_labels (single_succ (ENTRY_BLOCK_PTR_FOR_FN (fun)));
-  gsi_safe_insert_before (&gsi, g);
+  edge e = single_succ_edge (ENTRY_BLOCK_PTR_FOR_FN (cfun));
+  gsi_insert_on_edge_immediate (e, g);
 
   asan_local_shadow_memory_dynamic_address = lhs;
 }
