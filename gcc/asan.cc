@@ -526,7 +526,7 @@ asan_maybe_insert_dynamic_shadow_at_function_entry (function *fun)
   g = gimple_build_assign (lhs, get_asan_shadow_memory_dynamic_address_decl ());
   gimple_set_location (g, fun->function_start_locus);
   gsi = gsi_after_labels (single_succ (ENTRY_BLOCK_PTR_FOR_FN (fun)));
-  gsi_insert_before (&gsi, g, GSI_SAME_STMT);
+  gsi_safe_insert_before (&gsi, g);
 
   asan_local_shadow_memory_dynamic_address = lhs;
 }
