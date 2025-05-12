@@ -4544,6 +4544,12 @@ riscv_split_64bit_move_p (rtx dest, rtx src)
   if (TARGET_64BIT)
     return false;
 
+  /* Zilsd provides load/store with register pair. */
+  if (TARGET_ZILSD
+      && (((REG_P (dest) && MEM_P (src))
+	  || (MEM_P (dest) && REG_P (src)))))
+    return false;
+
   /* There is no need to split if the FLI instruction in the `Zfa` extension can be used.  */
   if (satisfies_constraint_zfli (src))
     return false;
@@ -9744,6 +9750,12 @@ riscv_hard_regno_mode_ok (unsigned int regno, machine_mode mode)
   if (GP_REG_P (regno))
     {
       if (riscv_v_ext_mode_p (mode))
+	return false;
+
+      /* Zilsd require load/store with reg pair.  */
+      if (TARGET_ZILSD
+	  && (GET_MODE_UNIT_SIZE (mode) == (UNITS_PER_WORD * 2))
+	  && (regno % 2 != 0))
 	return false;
 
       if (!GP_REG_P (regno + nregs - 1))
