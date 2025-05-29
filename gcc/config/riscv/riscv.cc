@@ -3961,7 +3961,26 @@ riscv_rtx_costs (rtx x, machine_mode mode, int outer_code, int opno ATTRIBUTE_UN
 	      *total = COSTS_N_INSNS (1);
 	      return true;
 	    }
+	  if (TARGET_ZILSD && REG_P (SET_SRC (x))
+	      && (GET_MODE_UNIT_SIZE (mode) == (UNITS_PER_WORD * 2)))
+	    {
+	      *total = COSTS_N_INSNS (1);
+	      return true;
+	    }
+	  if (TARGET_ZILSD && MEM_P (SET_SRC (x))
+	      && (GET_MODE_UNIT_SIZE (mode) == (UNITS_PER_WORD * 2)))
+	    {
+	      *total = COSTS_N_INSNS (1);
+	      return true;
+	    }
 	  riscv_rtx_costs (SET_SRC (x), mode, SET, opno, total, speed);
+	  return true;
+	}
+
+      if (TARGET_ZILSD && MEM_P (SET_DEST (x)) && REG_P (SET_SRC (x))
+	  && (GET_MODE_UNIT_SIZE (mode) == (UNITS_PER_WORD * 2)))
+	{
+	  *total = COSTS_N_INSNS (1);
 	  return true;
 	}
 
