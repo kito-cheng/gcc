@@ -3474,6 +3474,94 @@ static hash_table<registered_function_hasher> *function_table;
 static hash_table<non_overloaded_registered_function_hasher>
   *non_overloaded_function_table;
 
+struct pragma_intrinsic_flags
+{
+  int intrinsic_riscv_isa_flags;
+  int intrinsic_riscv_base_subext;
+
+  int intrinsic_riscv_vector_elen_flags;
+  int intrinsic_riscv_zvl_subext;
+  int intrinsic_riscv_zvb_subext;
+  int intrinsic_riscv_zvk_subext;
+  int intrinsic_riscv_zvf_subext;
+};
+
+static void
+riscv_pragma_intrinsic_flags_pollute (struct pragma_intrinsic_flags *flags)
+{
+  flags->intrinsic_riscv_isa_flags = riscv_isa_flags;
+  flags->intrinsic_riscv_base_subext = riscv_base_subext;
+  flags->intrinsic_riscv_vector_elen_flags = riscv_vector_elen_flags;
+  flags->intrinsic_riscv_zvl_subext = riscv_zvl_subext;
+  flags->intrinsic_riscv_zvb_subext = riscv_zvb_subext;
+  flags->intrinsic_riscv_zvk_subext = riscv_zvk_subext;
+  flags->intrinsic_riscv_zvf_subext = riscv_zvf_subext;
+
+  riscv_zvf_subext = riscv_zvf_subext
+    | MASK_ZVFBFMIN
+    | MASK_ZVFHMIN;
+
+  riscv_isa_flags = riscv_isa_flags
+    | MASK_VECTOR;
+
+  riscv_base_subext = riscv_base_subext | MASK_MUL;
+
+  /* Don't update ZVL flags if we are using RVV_VECTOR_BITS_ZVL, otherwise the
+     type size won't be what we expected.   */
+  if (rvv_vector_bits != RVV_VECTOR_BITS_ZVL)
+    riscv_zvl_subext = riscv_zvl_subext
+      | MASK_ZVL32B
+      | MASK_ZVL64B
+      | MASK_ZVL128B
+      | MASK_ZVL256B
+      | MASK_ZVL512B
+      | MASK_ZVL1024B
+      | MASK_ZVL2048B
+      | MASK_ZVL4096B;
+
+  riscv_vector_elen_flags = riscv_vector_elen_flags
+    | MASK_VECTOR_ELEN_32
+    | MASK_VECTOR_ELEN_64
+    | MASK_VECTOR_ELEN_FP_16
+    | MASK_VECTOR_ELEN_FP_32
+    | MASK_VECTOR_ELEN_FP_64
+    | MASK_VECTOR_ELEN_BF_16;
+
+  riscv_zvb_subext = riscv_zvb_subext
+    | MASK_ZVBB
+    | MASK_ZVBC
+    | MASK_ZVKB;
+
+  riscv_zvk_subext = riscv_zvk_subext
+    | MASK_ZVKG
+    | MASK_ZVKNED
+    | MASK_ZVKNHA
+    | MASK_ZVKNHB
+    | MASK_ZVKSED
+    | MASK_ZVKSH
+    | MASK_ZVKN
+    | MASK_ZVKNC
+    | MASK_ZVKNG
+    | MASK_ZVKS
+    | MASK_ZVKSC
+    | MASK_ZVKSG
+    | MASK_ZVKT;
+}
+
+static void
+riscv_pragma_intrinsic_flags_restore (struct pragma_intrinsic_flags *flags)
+{
+  riscv_isa_flags = flags->intrinsic_riscv_isa_flags;
+  riscv_base_subext = flags->intrinsic_riscv_base_subext;
+
+  riscv_vector_elen_flags = flags->intrinsic_riscv_vector_elen_flags;
+  riscv_zvl_subext = flags->intrinsic_riscv_zvl_subext;
+  riscv_zvb_subext = flags->intrinsic_riscv_zvb_subext;
+  riscv_zvk_subext = flags->intrinsic_riscv_zvk_subext;
+  riscv_zvf_subext = flags->intrinsic_riscv_zvf_subext;
+}
+
+
 /* RAII class for enabling enough RVV features to define the built-in
    types and implement the riscv_vector.h pragma.
 
@@ -3491,16 +3579,26 @@ public:
 
 private:
   bool m_old_have_regs_of_mode[MAX_MACHINE_MODE];
+  struct pragma_intrinsic_flags backup_flags;
 };
+
+static void
+register_builtin_types_on_null ();
 
 rvv_switcher::rvv_switcher ()
 {
+  riscv_pragma_intrinsic_flags_pollute (&backup_flags);
+  riscv_option_override ();
+
   /* Set have_regs_of_mode before targetm.init_builtins ().  */
   memcpy (m_old_have_regs_of_mode, have_regs_of_mode,
 	  sizeof (have_regs_of_mode));
   for (int i = 0; i < NUM_MACHINE_MODES; ++i)
     if (riscv_v_ext_vector_mode_p ((machine_mode) i))
       have_regs_of_mode[i] = true;
+
+  init_adjust_machine_modes ();
+  register_builtin_types_on_null ();
 }
 
 rvv_switcher::~rvv_switcher ()
@@ -3508,6 +3606,12 @@ rvv_switcher::~rvv_switcher ()
   /* Recover back have_regs_of_mode.  */
   memcpy (have_regs_of_mode, m_old_have_regs_of_mode,
 	  sizeof (have_regs_of_mode));
+
+  riscv_pragma_intrinsic_flags_restore (&backup_flags);
+
+  /* Re-initialize after the flags are restored.  */
+  riscv_option_override ();
+  init_adjust_machine_modes ();
 }
 
 /* Add attribute NAME to ATTRS.  */
@@ -3664,26 +3768,8 @@ register_tuple_type (vector_type_index type, vector_type_index subpart_type,
 static void
 register_builtin_types ()
 {
-  /* Get type node from get_typenode_from_name to prevent we have different type
-     node define in different target libraries, e.g. int32_t defined as
-     `long` in RV32/newlib-stdint, but `int` for RV32/glibc-stdint.h.
-     NOTE: uint[16|32|64]_type_node already defined in tree.h.  */
-  tree int8_type_node = get_typenode_from_name (INT8_TYPE);
-  tree uint8_type_node = get_typenode_from_name (UINT8_TYPE);
-  tree int16_type_node = get_typenode_from_name (INT16_TYPE);
-  tree int32_type_node = get_typenode_from_name (INT32_TYPE);
-  tree int64_type_node = get_typenode_from_name (INT64_TYPE);
-
-  machine_mode mode;
-#define DEF_RVV_TYPE(NAME, NCHARS, ABI_NAME, SCALAR_TYPE, VECTOR_MODE,         \
-		     ARGS...)                                                  \
-  mode = VECTOR_MODE##mode;                                                    \
-  register_builtin_type (VECTOR_TYPE_##NAME, SCALAR_TYPE##_type_node, mode);
-#define DEF_RVV_TUPLE_TYPE(NAME, NCHARS, ABI_NAME, SUBPART_TYPE, SCALAR_TYPE,  \
-			   NF, VECTOR_SUFFIX)                                  \
-  register_tuple_type (VECTOR_TYPE_##NAME, VECTOR_TYPE_##SUBPART_TYPE,         \
-		       SCALAR_TYPE##_type_node, NF);
-#include "riscv-vector-builtins.def"
+  /* Construct rvv_switcher will triger the buitin type registeration.  */
+  rvv_switcher rvv;
 }
 
 /* Similar as register_builtin_types but perform the registration if and
@@ -5051,28 +5137,11 @@ builtin_type_p (const_tree type)
 void
 init_builtins ()
 {
-  rvv_switcher rvv;
-  if (!TARGET_VECTOR)
-    return;
-  register_builtin_types ();
   if (in_lto_p)
+    /* "pragma vector" will register type during the process. */
     handle_pragma_vector ();
-}
-
-/* Reinitialize builtins similar to init_builtins,  but only the null
-   builtin types will be registered.  */
-void
-reinit_builtins ()
-{
-  rvv_switcher rvv;
-
-  if (!TARGET_VECTOR)
-    return;
-
-  register_builtin_types_on_null ();
-
-  if (in_lto_p)
-    handle_pragma_vector ();
+  else
+    register_builtin_types ();
 }
 
 /* Implement TARGET_VERIFY_TYPE_CONTEXT for RVV types.  */
