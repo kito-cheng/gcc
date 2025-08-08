@@ -6269,7 +6269,7 @@ riscv_hard_regno_nregs (unsigned int regno, machine_mode mode);
 
 static rtx
 riscv_get_vector_arg (struct riscv_arg_info *info, const CUMULATIVE_ARGS *cum,
-		      machine_mode mode, bool return_p)
+		      machine_mode mode, bool return_p, bool vls_p = false)
 {
   gcc_assert (riscv_v_ext_mode_p (mode));
 
