@@ -765,12 +765,6 @@ enum reg_class
 
 #define CALLEE_SAVED_FREG_NUMBER(REGNO) CALLEE_SAVED_REG_NUMBER (REGNO - 32)
 
-#define LIBCALL_VALUE(MODE) \
-  riscv_function_value (NULL_TREE, NULL_TREE, MODE)
-
-#define FUNCTION_VALUE(VALTYPE, FUNC) \
-  riscv_function_value (VALTYPE, FUNC, VOIDmode)
-
 /* 1 if N is a possible register number for function argument passing.
    We have no FP argument registers when soft-float.  */
 
@@ -785,12 +779,25 @@ enum riscv_cc
 {
   RISCV_CC_BASE = 0, /* Base standard RISC-V ABI.  */
   RISCV_CC_V, /* For functions that pass or return values in V registers.  */
+  /* For functions that pass or return values in V registers.  */
+  RISCV_CC_VLS_V_32,
+  RISCV_CC_VLS_V_64,
+  RISCV_CC_VLS_V_128,
+  RISCV_CC_VLS_V_256,
+  RISCV_CC_VLS_V_512,
+  RISCV_CC_VLS_V_1024,
+  RISCV_CC_VLS_V_2048,
+  RISCV_CC_VLS_V_4096,
+  RISCV_CC_VLS_V_8192,
+  RISCV_CC_VLS_V_16384,
   RISCV_CC_UNKNOWN
 };
 
 typedef struct {
   /* The calling convention that current function used.  */
   enum riscv_cc variant_cc;
+
+  unsigned int abi_vlen;
 
   /* Number of integer registers used so far, up to MAX_ARGS_IN_REGISTERS. */
   unsigned int num_gprs;
