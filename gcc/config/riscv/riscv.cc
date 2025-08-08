@@ -728,6 +728,7 @@ static tree riscv_handle_fndecl_attribute (tree *, tree, tree, int, bool *);
 static tree riscv_handle_type_attribute (tree *, tree, tree, int, bool *);
 static tree riscv_handle_rvv_vector_bits_attribute (tree *, tree, tree, int,
 						    bool *);
+static tree riscv_handle_rvv_vls_cc_attribute (tree *, tree, tree, int, bool *);
 
 /* Defining target-specific uses of __attribute__.  */
 static const attribute_spec riscv_gnu_attributes[] =
@@ -751,6 +752,8 @@ static const attribute_spec riscv_gnu_attributes[] =
     standard vector calling convention variant. Syntax:
     __attribute__((riscv_vector_cc)). */
   {"riscv_vector_cc", 0, 0, false, true, true, true, NULL, NULL},
+  {"riscv_vls_cc", 0, 1, false, true, true, true,
+   riscv_handle_rvv_vls_cc_attribute, NULL},
   /* This attribute is used to declare a new type, to appoint the exactly
      bits size of the type.  For example:
 
@@ -778,6 +781,8 @@ static const attribute_spec riscv_attributes[] =
      standard vector calling convention variant. Syntax:
      [[riscv::vector_cc]]. */
   {"vector_cc", 0, 0, false, true, true, true, NULL, NULL},
+  {"vls_cc", 0, 1, false, true, true, true, riscv_handle_rvv_vls_cc_attribute,
+   NULL},
   /* This attribute is used to declare a new type, to appoint the exactly
      bits size of the type.  For example:
 
@@ -5917,11 +5922,12 @@ typedef struct {
    floating-point registers.  */
 
 static int
-riscv_flatten_aggregate_field (const_tree type,
-			       riscv_aggregate_field fields[2],
+riscv_flatten_aggregate_field (const_tree type, riscv_aggregate_field *fields,
 			       int n, HOST_WIDE_INT offset,
-			       bool ignore_zero_width_bit_field_p)
+			       bool ignore_zero_width_bit_field_p,
+			       bool vls_p = false, unsigned abi_vlen = 0)
 {
+  int max_aggregate_field = vls_p ? 8 : 2;
   switch (TREE_CODE (type))
     {
     case RECORD_TYPE:
@@ -5948,9 +5954,9 @@ riscv_flatten_aggregate_field (const_tree type,
 	    else
 	      {
 		HOST_WIDE_INT pos = offset + int_byte_position (f);
-		n = riscv_flatten_aggregate_field (TREE_TYPE (f),
-						   fields, n, pos,
-						   ignore_zero_width_bit_field_p);
+		n = riscv_flatten_aggregate_field (
+		  TREE_TYPE (f), fields, n, pos, ignore_zero_width_bit_field_p,
+		  vls_p, abi_vlen);
 	      }
 	    if (n < 0)
 	      return -1;
@@ -5960,13 +5966,14 @@ riscv_flatten_aggregate_field (const_tree type,
     case ARRAY_TYPE:
       {
 	HOST_WIDE_INT n_elts;
-	riscv_aggregate_field subfields[2];
+	riscv_aggregate_field subfields[8];
 	tree index = TYPE_DOMAIN (type);
 	tree elt_size = TYPE_SIZE_UNIT (TREE_TYPE (type));
-	int n_subfields = riscv_flatten_aggregate_field (TREE_TYPE (type),
-							 subfields, 0, offset,
-							 ignore_zero_width_bit_field_p);
-
+	int n_subfields
+	  = riscv_flatten_aggregate_field (TREE_TYPE (type), subfields, 0,
+					   offset,
+					   ignore_zero_width_bit_field_p, vls_p,
+					   abi_vlen);
 	/* Can't handle incomplete types nor sizes that are not fixed.  */
 	if (n_subfields <= 0
 	    || !COMPLETE_TYPE_P (type)
@@ -5986,7 +5993,7 @@ riscv_flatten_aggregate_field (const_tree type,
 	for (HOST_WIDE_INT i = 0; i < n_elts; i++)
 	  for (int j = 0; j < n_subfields; j++)
 	    {
-	      if (n >= 2)
+	      if (n >= max_aggregate_field)
 		return -1;
 
 	      fields[n] = subfields[j];
@@ -6018,18 +6025,36 @@ riscv_flatten_aggregate_field (const_tree type,
       }
 
     default:
-      if (n < 2
-	  && ((SCALAR_FLOAT_TYPE_P (type)
-	       && GET_MODE_SIZE (TYPE_MODE (type)).to_constant () <= UNITS_PER_FP_ARG)
-	      || (INTEGRAL_TYPE_P (type)
-		  && GET_MODE_SIZE (TYPE_MODE (type)).to_constant () <= UNITS_PER_WORD)))
+      poly_uint64 mode_size = GET_MODE_SIZE (TYPE_MODE (type));
+      if (vls_p)
 	{
-	  fields[n].type = type;
-	  fields[n].offset = offset;
-	  return n + 1;
+	  gcc_assert (abi_vlen != 0);
+	  if (n < max_aggregate_field
+	      && (VECTOR_TYPE_P (type) && mode_size.is_constant ()
+		  && (mode_size.to_constant () <= abi_vlen * 8)))
+	    {
+	      fields[n].type = type;
+	      fields[n].offset = offset;
+	      return n + 1;
+	    }
+	  else
+	    return -1;
 	}
       else
-	return -1;
+	{
+	  if (n < max_aggregate_field
+	      && ((SCALAR_FLOAT_TYPE_P (type)
+		   && mode_size.to_constant () <= UNITS_PER_FP_ARG)
+		  || (INTEGRAL_TYPE_P (type)
+		      && mode_size.to_constant () <= UNITS_PER_WORD)))
+	    {
+	      fields[n].type = type;
+	      fields[n].offset = offset;
+	      return n + 1;
+	    }
+	  else
+	    return -1;
+	}
     }
 }
 
@@ -6038,14 +6063,16 @@ riscv_flatten_aggregate_field (const_tree type,
 
 static int
 riscv_flatten_aggregate_argument (const_tree type,
-				  riscv_aggregate_field fields[2],
-				  bool ignore_zero_width_bit_field_p)
+				  riscv_aggregate_field *fields,
+				  bool ignore_zero_width_bit_field_p,
+				  bool vls_p = false, unsigned abi_vlen = 0)
 {
   if (!type || TREE_CODE (type) != RECORD_TYPE)
     return -1;
 
   return riscv_flatten_aggregate_field (type, fields, 0, 0,
-					ignore_zero_width_bit_field_p);
+					ignore_zero_width_bit_field_p, vls_p,
+					abi_vlen);
 }
 
 /* See whether TYPE is a record whose fields should be returned in one or
@@ -6213,7 +6240,8 @@ riscv_pass_vls_aggregate_in_gpr (struct riscv_arg_info *info, machine_mode mode,
    For a library call, FNTYPE is 0.  */
 
 void
-riscv_init_cumulative_args (CUMULATIVE_ARGS *cum, tree fntype, rtx, tree, int)
+riscv_init_cumulative_args (CUMULATIVE_ARGS *cum, const_tree fntype,
+			    rtx, tree, int)
 {
   memset (cum, 0, sizeof (*cum));
 
@@ -6277,8 +6305,9 @@ riscv_get_vector_arg (struct riscv_arg_info *info, const CUMULATIVE_ARGS *cum,
   int arg_reg_end = V_ARG_LAST - V_REG_FIRST;
   int aligned_reg_start = ROUND_UP (arg_reg_start, LMUL);
 
-  /* For scalable data and scalable tuple return value.  */
-  if (return_p)
+  /* For scalable data and scalable tuple return value.
+     For VLS CC, we may pass struct like tuple, so need defer the handling.  */
+  if (return_p && !vls_p)
     return gen_rtx_REG (mode, aligned_reg_start + V_REG_FIRST);
 
   /* Iterate through the USED_VRS array to find vector register groups that have
@@ -6313,6 +6342,196 @@ riscv_get_vector_arg (struct riscv_arg_info *info, const CUMULATIVE_ARGS *cum,
     }
 
   return NULL_RTX;
+}
+
+/* Return true if ABI is a variant of VLS CC.  */
+
+static bool
+riscv_vls_cc_p (riscv_cc abi)
+{
+  switch (abi)
+    {
+    case RISCV_CC_VLS_V_32:
+    case RISCV_CC_VLS_V_64:
+    case RISCV_CC_VLS_V_128:
+    case RISCV_CC_VLS_V_256:
+    case RISCV_CC_VLS_V_512:
+    case RISCV_CC_VLS_V_1024:
+    case RISCV_CC_VLS_V_2048:
+    case RISCV_CC_VLS_V_4096:
+    case RISCV_CC_VLS_V_8192:
+    case RISCV_CC_VLS_V_16384:
+      return true;
+    default:
+      return false;
+    }
+}
+
+/* Get ABI_VLEN from ABI.  */
+
+static unsigned int
+riscv_get_cc_abi_vlen (riscv_cc abi)
+{
+  switch (abi)
+    {
+    case RISCV_CC_VLS_V_32:
+      return 32;
+    case RISCV_CC_VLS_V_64:
+      return 64;
+    case RISCV_CC_VLS_V_128:
+      return 128;
+    case RISCV_CC_VLS_V_256:
+      return 256;
+    case RISCV_CC_VLS_V_512:
+      return 512;
+    case RISCV_CC_VLS_V_1024:
+      return 1024;
+    case RISCV_CC_VLS_V_2048:
+      return 2048;
+    case RISCV_CC_VLS_V_4096:
+      return 4096;
+    case RISCV_CC_VLS_V_8192:
+      return 8192;
+    case RISCV_CC_VLS_V_16384:
+      return 16384;
+    default:
+      gcc_unreachable ();
+    }
+}
+
+/* Get a VLS type has same size as MODE in ABI_VLEN, but element is always
+   in integer mode.  */
+
+static machine_mode
+riscv_get_vls_constainer_type (machine_mode mode, unsigned abi_vlen)
+{
+  machine_mode element_mode = GET_MODE_INNER (mode);
+  unsigned int mode_size = GET_MODE_SIZE (mode).to_constant ();
+  unsigned int lmul = ROUND_UP (mode_size * 8, abi_vlen) / abi_vlen;
+
+  /* Always use integer mode to pass to simplify the logic - we allow pass
+     unsupported vector type in vector register, e.g. float16x4_t even no vector
+     fp16 support.  */
+  switch (GET_MODE_SIZE (element_mode).to_constant ())
+    {
+    case 1:
+      element_mode = QImode;
+      break;
+    case 2:
+      element_mode = HImode;
+      break;
+    case 4:
+      element_mode = SImode;
+      break;
+    case 8:
+      element_mode = DImode;
+      break;
+    default:
+      gcc_unreachable ();
+    }
+
+  scalar_mode smode = as_a<scalar_mode> (element_mode);
+  return get_lmul_mode (smode, lmul).require ();
+}
+
+/* Pass VLS type argument in vector argument register.  */
+
+static rtx
+riscv_pass_vls_in_vr (struct riscv_arg_info *info, const CUMULATIVE_ARGS *cum,
+		      machine_mode mode, bool return_p)
+{
+  gcc_assert (riscv_v_ext_vls_mode_p (mode));
+
+  unsigned int abi_vlen = riscv_get_cc_abi_vlen (cum->variant_cc);
+  unsigned int mode_size = GET_MODE_SIZE (mode).to_constant ();
+  unsigned int lmul = ROUND_UP (mode_size * 8, abi_vlen) / abi_vlen;
+
+  /* Put into memory if it need more than 8 registers (> LMUL 8).  */
+  if (lmul > 8)
+    return NULL_RTX;
+
+  machine_mode vla_mode = riscv_get_vls_constainer_type (mode, abi_vlen);
+  rtx reg = riscv_get_vector_arg (info, cum, vla_mode,
+				  return_p, /* vls_p */ true);
+
+  /* Can't get vector register to pass, pass by memory.  */
+  if (!reg)
+    return NULL_RTX;
+
+  PUT_MODE (reg, mode);
+
+  return reg;
+}
+
+/* Pass aggregate with VLS type argument in vector argument registers.  */
+
+static rtx
+riscv_pass_aggregate_in_vr (struct riscv_arg_info *info,
+			    const CUMULATIVE_ARGS *cum, const_tree type,
+			    bool return_p)
+{
+  riscv_aggregate_field fields[8];
+  unsigned int abi_vlen = riscv_get_cc_abi_vlen (cum->variant_cc);
+  int i;
+  int n = riscv_flatten_aggregate_argument (type, fields, true,
+					    /* vls_p */ true, abi_vlen);
+
+  if (n == -1)
+    return NULL_RTX;
+
+  /* Check all field has same size.  */
+  unsigned int mode_size
+    = GET_MODE_SIZE (TYPE_MODE (fields[0].type)).to_constant ();
+  for (int i = 1; i < n; i++)
+    if (GET_MODE_SIZE (TYPE_MODE (fields[i].type)).to_constant () != mode_size)
+      return NULL_RTX; /* Return NULL_RTX if we cannot find a suitable reg.  */
+
+  /* Check total size is <= abi_vlen * 8, we use up to 8 vector register to
+     pass argument.  */
+  if (mode_size * 8 > abi_vlen)
+    return NULL_RTX; /* Return NULL_RTX if we cannot find a suitable reg.  */
+
+  /* Backup cum->used_vrs since we will defer the update until
+     riscv_function_arg_advance.  */
+  CUMULATIVE_ARGS local_cum;
+  memcpy (&local_cum, cum, sizeof (local_cum));
+
+  unsigned num_vrs = 0;
+
+  /* Allocate vector registers for the arguments.  */
+  rtx expr_list[8];
+  for (i = 0; i < n; i++)
+    {
+      machine_mode mode = TYPE_MODE (fields[i].type);
+      machine_mode vla_mode = riscv_get_vls_constainer_type (mode, abi_vlen);
+      /* Use riscv_get_vector_arg with VLA type to simplify the calling
+	 convention implementation.  */
+      rtx reg
+	= riscv_get_vector_arg (info, &local_cum, vla_mode,
+				return_p, /* vls_p */true);
+
+      /* Can't get vector register to pass, pass by memory.  */
+      if (!reg)
+	return NULL_RTX;
+
+      PUT_MODE (reg, mode);
+
+      expr_list[i]
+	= gen_rtx_EXPR_LIST (VOIDmode, reg, GEN_INT (fields[i].offset));
+
+      num_vrs += info->num_vrs;
+
+      /* Set the corresponding register in USED_VRS to used status.  */
+      for (unsigned int i = 0; i < info->num_vrs; i++)
+	{
+	  gcc_assert (!local_cum.used_vrs[info->vr_offset + i]);
+	  local_cum.used_vrs[info->vr_offset + i] = true;
+	}
+    }
+
+  info->num_vrs = num_vrs;
+
+  return gen_rtx_PARALLEL (BLKmode, gen_rtvec_v (n, expr_list));
 }
 
 /* Fill INFO with information about a single argument, and return an RTL
@@ -6407,7 +6626,17 @@ riscv_get_arg_info (struct riscv_arg_info *info, const CUMULATIVE_ARGS *cum,
       if (riscv_vector_type_p (type) && riscv_v_ext_mode_p (mode))
 	return riscv_get_vector_arg (info, cum, mode, return_p);
 
-      /* For vls mode aggregated in gpr.  */
+      if (riscv_vls_cc_p (cum->variant_cc))
+	{
+	  if (riscv_v_ext_vls_mode_p (mode))
+	    return riscv_pass_vls_in_vr (info, cum, mode, return_p);
+
+	  rtx ret = riscv_pass_aggregate_in_vr (info, cum, type, return_p);
+	  if (ret)
+	    return ret;
+	}
+
+      /* For vls mode aggregated in gpr (for non-VLS-CC).  */
       if (riscv_v_ext_vls_mode_p (mode))
 	return riscv_pass_vls_aggregate_in_gpr (info, mode, gpr_base);
     }
@@ -6464,7 +6693,8 @@ riscv_function_arg_advance (cumulative_args_t cum_v,
       cum->used_vrs[info.vr_offset + i] = true;
     }
 
-  if ((info.num_vrs > 0 || info.num_mrs > 0) && cum->variant_cc != RISCV_CC_V)
+  if ((info.num_vrs > 0 || info.num_mrs > 0) && cum->variant_cc != RISCV_CC_V
+      && !riscv_vls_cc_p (cum->variant_cc))
     {
       error ("RVV type %qT cannot be passed to an unprototyped function",
 	     arg.type);
@@ -6569,14 +6799,19 @@ riscv_pass_by_reference (cumulative_args_t cum_v, const function_arg_info &arg)
 /* Implement TARGET_RETURN_IN_MEMORY.  */
 
 static bool
-riscv_return_in_memory (const_tree type, const_tree fndecl ATTRIBUTE_UNUSED)
+riscv_return_in_memory (const_tree type, const_tree fntype)
 {
   CUMULATIVE_ARGS args;
+
+  if (fntype)
+    riscv_init_cumulative_args (&args, fntype, NULL_RTX, NULL_TREE, 0);
+  else
+    /* The rules for returning in memory are the same as for passing the
+       first named argument by reference.  */
+    memset (&args, 0, sizeof args);
+
   cumulative_args_t cum = pack_cumulative_args (&args);
 
-  /* The rules for returning in memory are the same as for passing the
-     first named argument by reference.  */
-  memset (&args, 0, sizeof args);
   function_arg_info arg (const_cast<tree> (type), /*named=*/true);
   return riscv_pass_by_reference (cum, arg);
 }
@@ -6620,9 +6855,9 @@ riscv_setup_incoming_varargs (cumulative_args_t cum,
 /* Return the descriptor of the Standard Vector Calling Convention Variant.  */
 
 static const predefined_function_abi &
-riscv_v_abi ()
+riscv_v_abi (riscv_cc abi)
 {
-  predefined_function_abi &v_abi = function_abis[RISCV_CC_V];
+  predefined_function_abi &v_abi = function_abis[abi];
   if (!v_abi.initialized_p ())
     {
       HARD_REG_SET full_reg_clobbers
@@ -6632,7 +6867,7 @@ riscv_v_abi ()
 	CLEAR_HARD_REG_BIT (full_reg_clobbers, regno);
       for (int regno = V_REG_FIRST + 24; regno <= V_REG_FIRST + 31; regno += 1)
 	CLEAR_HARD_REG_BIT (full_reg_clobbers, regno);
-      v_abi.initialize (RISCV_CC_V, full_reg_clobbers);
+      v_abi.initialize (abi, full_reg_clobbers);
     }
   return v_abi;
 }
@@ -6844,6 +7079,29 @@ riscv_vector_cc_function_p (const_tree fntype)
   return vector_cc_p;
 }
 
+/* Return true if FUNC is a riscv_vector_cc function.
+   For more details please reference the below link.
+   https://github.com/riscv-non-isa/riscv-c-api-doc/pull/67 */
+static riscv_cc
+riscv_vls_cc_funciton_abi (const_tree fntype)
+{
+  tree attr = TYPE_ATTRIBUTES (fntype);
+  bool vls_cc_p = lookup_attribute ("vls_cc", attr) != NULL_TREE
+		  || lookup_attribute ("riscv_vls_cc", attr) != NULL_TREE;
+
+  if (vls_cc_p && !TARGET_VECTOR)
+    error_at (input_location,
+	      "function attribute %qs requires the V ISA extension",
+	      "riscv_vls_cc");
+
+  // TODO: Get ABI_VLEN
+
+  if (vls_cc_p)
+    return RISCV_CC_VLS_V_128;
+  else
+    return RISCV_CC_UNKNOWN;
+}
+
 /* Implement TARGET_FNTYPE_ABI.  */
 
 static const predefined_function_abi &
@@ -6859,7 +7117,11 @@ riscv_fntype_abi (const_tree fntype)
   validate_v_abi_p |= riscv_vector_cc_function_p (fntype);
 
   if (validate_v_abi_p)
-    return riscv_v_abi ();
+    return riscv_v_abi (RISCV_CC_V);
+
+  riscv_cc abi = riscv_vls_cc_funciton_abi (fntype);
+  if (abi != RISCV_CC_UNKNOWN)
+    return riscv_v_abi (abi);
 
   return default_function_abi;
 }
@@ -6949,6 +7211,15 @@ riscv_handle_type_attribute (tree *node ATTRIBUTE_UNUSED, tree name, tree args,
 	}
     }
 
+  return NULL_TREE;
+}
+
+static tree
+riscv_handle_rvv_vls_cc_attribute (tree *node, tree name, tree args,
+				   ATTRIBUTE_UNUSED int flags,
+				   bool *no_add_attrs)
+{
+  // TODO: Handle ABI_VLEN
   return NULL_TREE;
 }
 
@@ -11120,7 +11391,7 @@ riscv_asm_output_variant_cc (FILE *stream, const tree decl, const char *name)
   if (TREE_CODE (decl) == FUNCTION_DECL)
     {
       riscv_cc cc = (riscv_cc) fndecl_abi (decl).id ();
-      if (cc == RISCV_CC_V)
+      if (cc == RISCV_CC_V || riscv_vls_cc_p (cc))
 	{
 	  fprintf (stream, "\t.variant_cc\t");
 	  assemble_name (stream, name);
