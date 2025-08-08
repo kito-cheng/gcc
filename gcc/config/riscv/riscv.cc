@@ -6727,12 +6727,14 @@ riscv_arg_partial_bytes (cumulative_args_t cum,
 /* Implements hook TARGET_FUNCTION_VALUE.  */
 
 rtx
-riscv_function_value (const_tree ret_type, const_tree fn_decl_or_type, bool outgoing)
+riscv_function_value (const_tree ret_type, const_tree fn_decl_or_type,
+		      bool outgoing)
 {
   struct riscv_arg_info info;
   CUMULATIVE_ARGS args;
 
-  const_tree fntype = TREE_CODE(fn_decl_or_type) == FUNCTION_DECL ? TREE_TYPE(fn_decl_or_type) : fn_decl_or_type;
+  const_tree fntype = TREE_CODE (fn_decl_or_type) == FUNCTION_DECL ?
+			TREE_TYPE (fn_decl_or_type) : fn_decl_or_type;
   riscv_init_cumulative_args (&args, fntype, NULL_RTX, NULL_TREE, 0);
 
   int unsigned_p = TYPE_UNSIGNED (ret_type);
