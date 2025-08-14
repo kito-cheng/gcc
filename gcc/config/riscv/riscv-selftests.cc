@@ -367,6 +367,83 @@ run_broadcast_selftests (void)
   BROADCAST_TEST (MODE_VECTOR_FLOAT)
 }
 
+static void
+test_vectorize_related_mode (machine_mode vec_mode, scalar_mode ele_mode,
+			     machine_mode expected)
+{
+  opt_machine_mode result = riscv_vector::vectorize_related_mode (vec_mode, ele_mode, 0);
+  machine_mode result_mode = result.require ();
+  printf ("%s %s %s %s\n", mode_name[result_mode], mode_name[vec_mode], mode_name[ele_mode], mode_name[expected]);
+  ASSERT_TRUE (result == expected);
+}
+
+static void
+run_vectorize_related_mode_selftests (void)
+{
+  riscv_selftest_arch_abi_setter rv ("rv64imafdcv", ABI_LP64D);
+  enum rvv_max_lmul_enum backup_rvv_max_lmul = rvv_max_lmul;
+  rvv_max_lmul = RVV_M1;
+  test_vectorize_related_mode (  V32QImode, QImode,   V16QImode);
+  test_vectorize_related_mode (  V32QImode, HImode,    V8HImode);
+  test_vectorize_related_mode (  V32QImode, SImode,    V4SImode);
+  test_vectorize_related_mode (  V32QImode, DImode,    V2DImode);
+
+  test_vectorize_related_mode (RVVM1QImode, SImode, RVVM1SImode);
+  test_vectorize_related_mode (RVVM2QImode, SImode, RVVM1SImode);
+  test_vectorize_related_mode (RVVM4QImode, SImode, RVVM1SImode);
+  test_vectorize_related_mode (RVVM8QImode, SImode, RVVM1SImode);
+  test_vectorize_related_mode (RVVM8QImode, DImode, RVVM1DImode);
+  test_vectorize_related_mode (RVVM8QImode, QImode, RVVM1QImode);
+  test_vectorize_related_mode (RVVM8QImode, HImode, RVVM1HImode);
+
+  rvv_max_lmul = RVV_M2;
+
+  test_vectorize_related_mode (  V32QImode, QImode,   V32QImode);
+  test_vectorize_related_mode (  V32QImode, HImode,   V16HImode);
+  test_vectorize_related_mode (  V32QImode, SImode,    V8SImode);
+  test_vectorize_related_mode (  V32QImode, DImode,    V4DImode);
+
+  test_vectorize_related_mode (RVVM1QImode, SImode, RVVM2SImode);
+  test_vectorize_related_mode (RVVM2QImode, SImode, RVVM2SImode);
+  test_vectorize_related_mode (RVVM4QImode, SImode, RVVM2SImode);
+  test_vectorize_related_mode (RVVM8QImode, SImode, RVVM2SImode);
+  test_vectorize_related_mode (RVVM8QImode, DImode, RVVM2DImode);
+  test_vectorize_related_mode (RVVM8QImode, QImode, RVVM2QImode);
+  test_vectorize_related_mode (RVVM8QImode, HImode, RVVM2HImode);
+
+  rvv_max_lmul = RVV_M4;
+
+  test_vectorize_related_mode ( V128QImode, QImode,   V64QImode);
+  test_vectorize_related_mode ( V128QImode, HImode,   V32HImode);
+  test_vectorize_related_mode ( V128QImode, SImode,   V16SImode);
+  test_vectorize_related_mode ( V128QImode, DImode,    V8DImode);
+
+  test_vectorize_related_mode (RVVM1QImode, SImode, RVVM4SImode);
+  test_vectorize_related_mode (RVVM2QImode, SImode, RVVM4SImode);
+  test_vectorize_related_mode (RVVM4QImode, SImode, RVVM4SImode);
+  test_vectorize_related_mode (RVVM8QImode, SImode, RVVM4SImode);
+  test_vectorize_related_mode (RVVM8QImode, DImode, RVVM4DImode);
+  test_vectorize_related_mode (RVVM8QImode, QImode, RVVM4QImode);
+  test_vectorize_related_mode (RVVM8QImode, HImode, RVVM4HImode);
+
+  rvv_max_lmul = RVV_M8;
+
+  test_vectorize_related_mode ( V128QImode, QImode,  V128QImode);
+  test_vectorize_related_mode ( V128QImode, HImode,   V64HImode);
+  test_vectorize_related_mode ( V128QImode, SImode,   V32SImode);
+  test_vectorize_related_mode ( V128QImode, DImode,   V16DImode);
+
+  test_vectorize_related_mode (RVVM1QImode, SImode, RVVM4SImode);
+  test_vectorize_related_mode (RVVM2QImode, SImode, RVVM8SImode);
+  test_vectorize_related_mode (RVVM4QImode, SImode, RVVM8SImode);
+  test_vectorize_related_mode (RVVM8QImode, SImode, RVVM8SImode);
+  test_vectorize_related_mode (RVVM8QImode, DImode, RVVM8DImode);
+  test_vectorize_related_mode (RVVM8QImode, QImode, RVVM8QImode);
+  test_vectorize_related_mode (RVVM8QImode, HImode, RVVM8HImode);
+
+  rvv_max_lmul = backup_rvv_max_lmul;
+}
+
 namespace selftest {
 /* Run all target-specific selftests.  */
 void
@@ -387,6 +464,7 @@ riscv_run_selftests (void)
     run_poly_int_selftests ();
   run_const_vector_selftests ();
   run_broadcast_selftests ();
+  run_vectorize_related_mode_selftests ();
 }
 } // namespace selftest
 #endif /* #if CHECKING_P */
