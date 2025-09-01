@@ -43,6 +43,7 @@ along with GCC; see the file COPYING3.  If not see
 #include "tree-data-ref.h"
 #include "tree-ssa-loop-niter.h"
 #include "tree-hash-traits.h"
+#include "gimple-pretty-print.h"
 
 /* This file should be included last.  */
 #include "riscv-vector-costs.h"
@@ -893,6 +894,15 @@ costs::has_unexpected_spills_p (loop_vec_info loop_vinfo)
 costs::costs (vec_info *vinfo, bool costing_for_scalar)
   : vector_costs (vinfo, costing_for_scalar)
 {
+  if (dump_file)
+  {
+    if (costing_for_scalar)
+      fprintf(dump_file, "riscv::costs::costs scalar\n");
+    else if (riscv_v_ext_vector_mode_p (vinfo->vector_mode))
+      fprintf(dump_file, "riscv::costs::costs VLA\n");
+    else
+      fprintf(dump_file, "riscv::costs::costs VLS\n");
+  }
   if (costing_for_scalar)
     m_cost_type = SCALAR_COST;
   else if (riscv_v_ext_vector_mode_p (vinfo->vector_mode))
@@ -1110,6 +1120,13 @@ costs::adjust_stmt_cost (enum vect_cost_for_stmt kind, loop_vec_info loop,
 			 slp_tree node, tree vectype, int stmt_cost)
 {
   const cpu_vector_cost *costs = get_vector_costs ();
+      if (dump_file)
+      {
+	  fprintf(dump_file, "riscv::costs::adjust_stmt_cost kind=%d stmt_cost=%d\n", kind, stmt_cost);
+	  fprintf(dump_file, "riscv::costs::adjust_stmt_cost stmt=");
+	  if (stmt_info && stmt_info->stmt)
+	    print_gimple_stmt (dump_file, stmt_info->stmt, 0, TDF_SLIM);
+      }
   switch (kind)
     {
     case scalar_to_vec:
@@ -1119,6 +1136,8 @@ costs::adjust_stmt_cost (enum vect_cost_for_stmt kind, loop_vec_info loop,
     case vec_to_scalar:
       stmt_cost += (FLOAT_TYPE_P (vectype) ? costs->regmove->VR2FR
 		    : costs->regmove->VR2GR);
+      if (dump_file)
+	  fprintf(dump_file, "riscv::costs::adjust_stmt_cost (vec_to_scalar) stmt_cost=%d\n", stmt_cost);
       break;
     case vector_load:
     case vector_store:
@@ -1243,6 +1262,8 @@ costs::adjust_stmt_cost (enum vect_cost_for_stmt kind, loop_vec_info loop,
     default:
       break;
     }
+  if (dump_file)
+    fprintf(dump_file, "riscv::costs::adjust_stmt_cost (final) stmt_cost=%d\n", stmt_cost);
   return stmt_cost;
 }
 
@@ -1343,6 +1364,8 @@ costs::adjust_vect_cost_per_loop (loop_vec_info loop_vinfo)
 void
 costs::finish_cost (const vector_costs *scalar_costs)
 {
+  if (dump_file)
+    fprintf(dump_file, "riscv::costs::finish_cost\n");
   if (loop_vec_info loop_vinfo = dyn_cast<loop_vec_info> (m_vinfo))
     {
       record_lmul_spills (loop_vinfo);
