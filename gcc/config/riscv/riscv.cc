@@ -12822,6 +12822,24 @@ riscv_init_libfuncs (void)
   set_conv_libfunc (trunc_optab, HFmode, BFmode, "__truncbfhf2");
 }
 
+/* Implement the TARGET_OPTAB_SUPPORTED_P hook.  */
+
+static bool
+riscv_optab_supported_p (int op, machine_mode mode1, machine_mode,
+                           optimization_type opt_type)
+{
+  if (!riscv_v_ext_vls_mode_p (mode1))
+    return true;
+
+  unsigned int mode_size = GET_MODE_SIZE (mode1).to_constant ();
+  unsigned int lmul = ROUND_UP (mode_size * 8, TARGET_MIN_VLEN) / TARGET_MIN_VLEN;
+
+  if (lmul > TARGET_MAX_LMUL)
+    return false;
+
+  return true;
+}
+
 #if CHECKING_P
 void
 riscv_reinit (void)
@@ -16178,6 +16196,9 @@ riscv_prefetch_offset_address_p (rtx x, machine_mode mode)
 
 #undef TARGET_INIT_LIBFUNCS
 #define TARGET_INIT_LIBFUNCS riscv_init_libfuncs
+
+#undef TARGET_OPTAB_SUPPORTED_P
+#define TARGET_OPTAB_SUPPORTED_P riscv_optab_supported_p
 
 #undef TARGET_C_EXCESS_PRECISION
 #define TARGET_C_EXCESS_PRECISION riscv_excess_precision

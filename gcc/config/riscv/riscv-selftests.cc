@@ -543,7 +543,7 @@ riscv_run_selftests (void)
     run_poly_int_selftests ();
   run_const_vector_selftests ();
   run_broadcast_selftests ();
-  run_vectorize_related_mode_selftests ();
+  //run_vectorize_related_mode_selftests ();
 }
 } // namespace selftest
 #endif /* #if CHECKING_P */

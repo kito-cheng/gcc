@@ -1407,8 +1407,8 @@
 ;; -----------------------------------------------------------------
 
 (define_expand "mov<mode>"
-  [(set (match_operand:VLS_AVL_IMM 0 "reg_or_mem_operand")
-	(match_operand:VLS_AVL_IMM 1 "general_operand"))]
+  [(set (match_operand:VLS_AVL_IMM_MV 0 "reg_or_mem_operand")
+	(match_operand:VLS_AVL_IMM_MV 1 "general_operand"))]
   "TARGET_VECTOR"
 {
   if (riscv_vector::legitimize_move (operands[0], &operands[1]))
@@ -1416,8 +1416,8 @@
 })
 
 (define_insn_and_split "*mov<mode>"
-  [(set (match_operand:VLS_AVL_IMM 0 "reg_or_mem_operand" "=vr, m, vr")
-	(match_operand:VLS_AVL_IMM 1 "reg_or_mem_operand" "  m,vr, vr"))]
+  [(set (match_operand:VLS_AVL_IMM_MV 0 "reg_or_mem_operand" "=vr, m, vr")
+	(match_operand:VLS_AVL_IMM_MV 1 "reg_or_mem_operand" "  m,vr, vr"))]
   "TARGET_VECTOR
    && (register_operand (operands[0], <MODE>mode)
        || register_operand (operands[1], <MODE>mode))"
@@ -1442,8 +1442,8 @@
 )
 
 (define_expand "mov<mode>"
-  [(set (match_operand:VLS_AVL_REG 0 "reg_or_mem_operand")
-	(match_operand:VLS_AVL_REG 1 "general_operand"))]
+  [(set (match_operand:VLS_AVL_REG_MV 0 "reg_or_mem_operand")
+	(match_operand:VLS_AVL_REG_MV 1 "general_operand"))]
   "TARGET_VECTOR"
 {
   bool ok_p = riscv_vector::legitimize_move (operands[0], &operands[1]);
@@ -1451,21 +1451,21 @@
   DONE;
 })
 
-(define_expand "@mov<VLS_AVL_REG:mode><P:mode>_lra"
+(define_expand "@mov<VLS_AVL_REG_MV:mode><P:mode>_lra"
   [(parallel
-    [(set (match_operand:VLS_AVL_REG 0 "reg_or_mem_operand")
-	  (match_operand:VLS_AVL_REG 1 "reg_or_mem_operand"))
+    [(set (match_operand:VLS_AVL_REG_MV 0 "reg_or_mem_operand")
+	  (match_operand:VLS_AVL_REG_MV 1 "reg_or_mem_operand"))
    (clobber (match_scratch:P 2))])]
   "TARGET_VECTOR && (lra_in_progress || reload_completed)"
 {})
 
-(define_insn_and_split "*mov<VLS_AVL_REG:mode><P:mode>_lra"
-  [(set (match_operand:VLS_AVL_REG 0 "reg_or_mem_operand" "=vr, m,vr")
-	(match_operand:VLS_AVL_REG 1 "reg_or_mem_operand" "  m,vr,vr"))
+(define_insn_and_split "*mov<VLS_AVL_REG_MV:mode><P:mode>_lra"
+  [(set (match_operand:VLS_AVL_REG_MV 0 "reg_or_mem_operand" "=vr, m,vr")
+	(match_operand:VLS_AVL_REG_MV 1 "reg_or_mem_operand" "  m,vr,vr"))
    (clobber (match_scratch:P 2 "=&r,&r,X"))]
   "TARGET_VECTOR && (lra_in_progress || reload_completed)
-   && (register_operand (operands[0], <VLS_AVL_REG:MODE>mode)
-       || register_operand (operands[1], <VLS_AVL_REG:MODE>mode))"
+   && (register_operand (operands[0], <VLS_AVL_REG_MV:MODE>mode)
+       || register_operand (operands[1], <VLS_AVL_REG_MV:MODE>mode))"
   "#"
   "&& reload_completed"
   [(const_int 0)]
@@ -1474,27 +1474,27 @@
       emit_insn (gen_rtx_SET (operands[0], operands[1]));
   else
     {
-      emit_move_insn (operands[2], gen_int_mode (GET_MODE_NUNITS (<VLS_AVL_REG:MODE>mode),
+      emit_move_insn (operands[2], gen_int_mode (GET_MODE_NUNITS (<VLS_AVL_REG_MV:MODE>mode),
 						 Pmode));
       unsigned insn_flags
-        = GET_MODE_CLASS (<VLS_AVL_REG:MODE>mode) == MODE_VECTOR_BOOL
+        = GET_MODE_CLASS (<VLS_AVL_REG_MV:MODE>mode) == MODE_VECTOR_BOOL
 						     ? riscv_vector::UNARY_MASK_OP
 						     : riscv_vector::UNARY_OP;
-      riscv_vector::emit_nonvlmax_insn (code_for_pred_mov (<VLS_AVL_REG:MODE>mode),
+      riscv_vector::emit_nonvlmax_insn (code_for_pred_mov (<VLS_AVL_REG_MV:MODE>mode),
 					insn_flags, operands, operands[2]);
     }
   DONE;
 }
   [(set_attr "type" "vlde,vste,vmov")
-   (set_attr "mode" "<VLS_AVL_REG:MODE>")
+   (set_attr "mode" "<VLS_AVL_REG_MV:MODE>")
    (set (attr "merge_op_idx") (const_int INVALID_ATTRIBUTE))
    (set (attr "avl_type_idx") (const_int INVALID_ATTRIBUTE))
    (set (attr "mode_idx") (const_int INVALID_ATTRIBUTE))]
 )
 
 (define_insn_and_split "*mov<mode>_vls"
-  [(set (match_operand:VLS 0 "register_operand" "=vr")
-	(match_operand:VLS 1 "register_operand" " vr"))]
+  [(set (match_operand:VLS_MV 0 "register_operand" "=vr")
+	(match_operand:VLS_MV 1 "register_operand" " vr"))]
   "TARGET_VECTOR"
   "#"
   "&& 1"
@@ -1505,8 +1505,8 @@
    (set_attr "mode" "<MODE>")])
 
 (define_insn "*mov<mode>_vls_vtype"
-  [(set (match_operand:VLS 0 "register_operand" "=vr")
-	(match_operand:VLS 1 "register_operand" " vr"))
+  [(set (match_operand:VLS_MV 0 "register_operand" "=vr")
+	(match_operand:VLS_MV 1 "register_operand" " vr"))
    (use (reg:SI VTYPE_REGNUM))]
   "TARGET_VECTOR"
   "vmv%m1r.v\t%0,%1"
@@ -1514,8 +1514,8 @@
    (set_attr "mode" "<MODE>")])
 
 (define_insn_and_split "*mov<mode>_vls"
-  [(set (match_operand:VLSB 0 "register_operand" "=vr")
-	(match_operand:VLSB 1 "register_operand" " vr"))]
+  [(set (match_operand:VLSB_MV 0 "register_operand" "=vr")
+	(match_operand:VLSB_MV 1 "register_operand" " vr"))]
   "TARGET_VECTOR"
   "#"
   "&& 1"
@@ -1526,8 +1526,8 @@
    (set_attr "mode" "<MODE>")])
 
 (define_insn "*mov<mode>_vls_vtype"
-  [(set (match_operand:VLSB 0 "register_operand" "=vr")
-	(match_operand:VLSB 1 "register_operand" " vr"))
+  [(set (match_operand:VLSB_MV 0 "register_operand" "=vr")
+	(match_operand:VLSB_MV 1 "register_operand" " vr"))
    (use (reg:SI VTYPE_REGNUM))]
   "TARGET_VECTOR"
   "vmv1r.v\t%0,%1"
@@ -1552,8 +1552,8 @@
 ;; -----------------------------------------------------------------
 
 (define_expand "vec_duplicate<mode>"
-  [(set (match_operand:V_VLS 0 "register_operand")
-        (vec_duplicate:V_VLS
+  [(set (match_operand:V_VLS_MV 0 "register_operand")
+        (vec_duplicate:V_VLS_MV
           (match_operand:<VEL> 1 "any_broadcast_operand")))]
   "TARGET_VECTOR"
   {
@@ -1599,8 +1599,8 @@
 ;; Constant vectors go through the movm pattern instead.
 ;; So "direct_broadcast_operand" can only be mem or reg, no CONSTANT.
 (define_insn_and_split "*vec_duplicate<mode>"
-  [(set (match_operand:V_VLS 0 "register_operand")
-        (vec_duplicate:V_VLS
+  [(set (match_operand:V_VLS_MV 0 "register_operand")
+        (vec_duplicate:V_VLS_MV
           (match_operand:<VEL> 1 "any_broadcast_operand")))]
   "TARGET_VECTOR && can_create_pseudo_p ()"
   "#"
@@ -1899,8 +1899,8 @@
 
 ;; If operand 3 is a const_vector, then it is left to pred_broadcast patterns.
 (define_expand "@pred_mov<mode>"
-  [(set (match_operand:V_VLS 0 "nonimmediate_operand")
-    (if_then_else:V_VLS
+  [(set (match_operand:V_VLS_MV 0 "nonimmediate_operand")
+    (if_then_else:V_VLS_MV
       (unspec:<VM>
         [(match_operand:<VM> 1 "vector_mask_operand")
          (match_operand 4 "vector_length_operand")
@@ -1909,15 +1909,15 @@
          (match_operand 7 "const_int_operand")
          (reg:SI VL_REGNUM)
          (reg:SI VTYPE_REGNUM)] UNSPEC_VPREDICATE)
-      (match_operand:V_VLS 3 "vector_move_operand")
-      (match_operand:V_VLS 2 "vector_merge_operand")))]
+      (match_operand:V_VLS_MV 3 "vector_move_operand")
+      (match_operand:V_VLS_MV 2 "vector_merge_operand")))]
   "TARGET_VECTOR"
   {})
 
 ;; vle.v/vse.v,vmv.v.v
 (define_insn_and_split "*pred_mov<mode>"
-  [(set (match_operand:V_VLS 0 "nonimmediate_operand"            "=vr,    vr,    vd,     m,    vr,    vr")
-    (if_then_else:V_VLS
+  [(set (match_operand:V_VLS_MV 0 "nonimmediate_operand"            "=vr,    vr,    vd,     m,    vr,    vr")
+    (if_then_else:V_VLS_MV
       (unspec:<VM>
         [(match_operand:<VM> 1 "vector_mask_operand"           "vmWc1,   Wc1,    vm, vmWc1,   Wc1,   Wc1")
          (match_operand 4 "vector_length_operand"              "  rvl,   rvl,   rvl,   rvl,   rvl,   rvl")
@@ -1926,8 +1926,8 @@
          (match_operand 7 "const_int_operand"                  "    i,     i,     i,     i,     i,     i")
          (reg:SI VL_REGNUM)
          (reg:SI VTYPE_REGNUM)] UNSPEC_VPREDICATE)
-      (match_operand:V_VLS 3 "reg_or_mem_operand"              "    m,     m,     m,    vr,    vr,    vr")
-      (match_operand:V_VLS 2 "vector_merge_operand"            "    0,    vu,    vu,    vu,    vu,     0")))]
+      (match_operand:V_VLS_MV 3 "reg_or_mem_operand"              "    m,     m,     m,    vr,    vr,    vr")
+      (match_operand:V_VLS_MV 2 "vector_merge_operand"            "    0,    vu,    vu,    vu,    vu,     0")))]
   "(TARGET_VECTOR
     && (register_operand (operands[0], <MODE>mode)
         || register_operand (operands[3], <MODE>mode)))"
@@ -1970,16 +1970,16 @@
 ;; constraint alternative 3 match vmclr.m.
 ;; constraint alternative 4 match vmset.m.
 (define_insn_and_split "@pred_mov<mode>"
-  [(set (match_operand:VB_VLS 0 "nonimmediate_operand"               "=vr,   m,  vr,  vr,  vr")
-	(if_then_else:VB_VLS
-	  (unspec:VB_VLS
-	    [(match_operand:VB_VLS 1 "vector_all_trues_mask_operand" "Wc1, Wc1, Wc1, Wc1, Wc1")
+  [(set (match_operand:VB_VLS_MV 0 "nonimmediate_operand"               "=vr,   m,  vr,  vr,  vr")
+	(if_then_else:VB_VLS_MV
+	  (unspec:VB_VLS_MV
+	    [(match_operand:VB_VLS_MV 1 "vector_all_trues_mask_operand" "Wc1, Wc1, Wc1, Wc1, Wc1")
 	     (match_operand 4 "vector_length_operand"            "rvl, rvl, rvl, rvl, rvl")
 	     (match_operand 5 "const_int_operand"                "  i,   i,   i,   i,   i")
 	     (reg:SI VL_REGNUM)
 	     (reg:SI VTYPE_REGNUM)] UNSPEC_VPREDICATE)
-	  (match_operand:VB_VLS 3 "vector_move_operand"              "  m,  vr,  vr, Wc0, Wc1")
-	  (match_operand:VB_VLS 2 "vector_undef_operand"             " vu,  vu,  vu,  vu,  vu")))]
+	  (match_operand:VB_VLS_MV 3 "vector_move_operand"              "  m,  vr,  vr, Wc0, Wc1")
+	  (match_operand:VB_VLS_MV 2 "vector_undef_operand"             " vu,  vu,  vu,  vu,  vu")))]
   "TARGET_VECTOR"
   "@
    vlm.v\t%0,%3
@@ -2313,8 +2313,8 @@
 ;; Because (vec_duplicate imm) will be converted to (const_vector imm),
 ;; This pattern is used to handle this case.
 (define_insn "*pred_broadcast<mode>_imm"
-  [(set (match_operand:V_VLS 0 "register_operand"                     "=vr,    vr")
-    (if_then_else:V_VLS
+  [(set (match_operand:V_VLS_MV 0 "register_operand"                     "=vr,    vr")
+    (if_then_else:V_VLS_MV
       (unspec:<VM>
         [(match_operand:<VM> 1 "vector_all_trues_mask_operand"      "  Wc1,   Wc1")
          (match_operand 4 "vector_length_operand"                   "  rvl,   rvl")
@@ -2323,8 +2323,8 @@
          (match_operand 7 "const_int_operand"                       "    i,     i")
          (reg:SI VL_REGNUM)
          (reg:SI VTYPE_REGNUM)] UNSPEC_VPREDICATE)
-      (match_operand:V_VLS 3 "vector_const_int_or_double_0_operand" "viWc0, viWc0")
-      (match_operand:V_VLS 2 "vector_merge_operand"                 "   vu,     0")))]
+      (match_operand:V_VLS_MV 3 "vector_const_int_or_double_0_operand" "viWc0, viWc0")
+      (match_operand:V_VLS_MV 2 "vector_merge_operand"                 "   vu,     0")))]
   "TARGET_VECTOR"
   "vmv.v.i\t%0,%v3"
   [(set_attr "type" "vimov,vimov")

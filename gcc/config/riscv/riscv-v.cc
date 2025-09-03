@@ -5141,10 +5141,16 @@ vls_mode_valid_p (machine_mode vls_mode, bool allow_up_to_lmul_8)
 
   if (rvv_vector_bits == RVV_VECTOR_BITS_SCALABLE)
     {
-      if (GET_MODE_CLASS (vls_mode) != MODE_VECTOR_BOOL)
+      if (GET_MODE_CLASS (vls_mode) == MODE_VECTOR_BOOL)
 	return true;
       if (allow_up_to_lmul_8)
 	return true;
+      unsigned int mode_size = GET_MODE_SIZE (vls_mode).to_constant ();
+      unsigned int lmul = ROUND_UP (mode_size * 8, TARGET_MIN_VLEN) / TARGET_MIN_VLEN;
+
+      if (lmul > TARGET_MAX_LMUL)
+	return false;
+#if 0
       /* We enable VLS modes which are aligned with TARGET_MAX_LMUL and
 	 BITS_PER_RISCV_VECTOR.
 
@@ -5155,6 +5161,8 @@ vls_mode_valid_p (machine_mode vls_mode, bool allow_up_to_lmul_8)
 	 middle-end generic codes.  */
       return !ordered_p (TARGET_MAX_LMUL * BITS_PER_RISCV_VECTOR,
 			 GET_MODE_PRECISION (vls_mode));
+#endif
+      return true;
     }
 
   if (rvv_vector_bits == RVV_VECTOR_BITS_ZVL)

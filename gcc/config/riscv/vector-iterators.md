@@ -4987,3 +4987,5 @@
   (RVVM4HI "HF") (RVVM2HI "HF") (RVVM1HI "HF") (RVVMF2HI "HF") (RVVMF4HI "HF")
   (RVVM4SI "SF") (RVVM2SI "SF") (RVVM1SI "SF") (RVVMF2SI "SF")
 ])
+
+(include "vector-iterators-vls.md")
