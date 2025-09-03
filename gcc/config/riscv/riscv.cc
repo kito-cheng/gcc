@@ -3691,6 +3691,7 @@ riscv_legitimize_move (machine_mode mode, rtx dest, rtx src)
 	 not enabled.  In that case we just want to let the standard
 	 expansion path run.  */
       if (riscv_vector::get_vector_mode (smode, nunits).exists (&vmode)
+//	  && (!riscv_v_ext_vls_mode_p (vmode) || vls_mode_valid_p (vmode))
 	  && gen_lowpart_common (vmode, SUBREG_REG (src)))
 	{
 	  rtx v = gen_lowpart (vmode, SUBREG_REG (src));
@@ -10396,6 +10397,9 @@ static bool
 riscv_hard_regno_mode_ok (unsigned int regno, machine_mode mode)
 {
   unsigned int nregs = riscv_hard_regno_nregs (regno, mode);
+
+  if (riscv_v_ext_vls_mode_p (mode) && !vls_mode_valid_p (mode))
+    return false;
 
   if (GP_REG_P (regno))
     {
