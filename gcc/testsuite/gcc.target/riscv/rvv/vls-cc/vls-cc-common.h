@@ -54,6 +54,12 @@ typedef uint32_t uint32x4_t __attribute__((vector_size(16)));
 typedef uint32_t uint32x8_t __attribute__((vector_size(32)));
 typedef uint32_t uint32x16_t __attribute__((vector_size(64)));
 
+#ifdef SUPPORT_NON_POWER_OF_2_VEC
+// Non-power-of-2 vectors (not supported by most compilers yet)
+typedef int32_t int32x3_t __attribute__((vector_size(12)));
+typedef uint32_t uint32x3_t __attribute__((vector_size(12)));
+#endif
+
 // 64-bit integer vectors
 typedef int64_t int64x2_t __attribute__((vector_size(16)));
 typedef int64_t int64x4_t __attribute__((vector_size(32)));
@@ -62,6 +68,12 @@ typedef int64_t int64x8_t __attribute__((vector_size(64)));
 typedef uint64_t uint64x2_t __attribute__((vector_size(16)));
 typedef uint64_t uint64x4_t __attribute__((vector_size(32)));
 typedef uint64_t uint64x8_t __attribute__((vector_size(64)));
+
+#ifdef SUPPORT_NON_POWER_OF_2_VEC
+// Non-power-of-2 vectors (not supported by most compilers yet)
+typedef int64_t int64x3_t __attribute__((vector_size(24)));
+typedef uint64_t uint64x3_t __attribute__((vector_size(24)));
+#endif
 
 // Floating-point vectors (following the same pattern)
 typedef float float32x2_t __attribute__((vector_size(8)));
@@ -72,6 +84,28 @@ typedef float float32x16_t __attribute__((vector_size(64)));
 typedef double double64x2_t __attribute__((vector_size(16)));
 typedef double double64x4_t __attribute__((vector_size(32)));
 typedef double double64x8_t __attribute__((vector_size(64)));
+
+#ifdef SUPPORT_NON_POWER_OF_2_VEC
+// Non-power-of-2 vectors (not supported by most compilers yet)
+typedef float float32x3_t __attribute__((vector_size(12)));
+typedef double double64x3_t __attribute__((vector_size(24)));
+#endif
+
+// Half precision floating-point vectors (if supported)
+#ifdef __FP16_SUPPORTED__
+typedef _Float16 float16x4_t __attribute__((vector_size(8)));
+typedef _Float16 float16x8_t __attribute__((vector_size(16)));
+typedef _Float16 float16x16_t __attribute__((vector_size(32)));
+typedef _Float16 float16x32_t __attribute__((vector_size(64)));
+#endif
+
+// BFloat16 vectors (if supported)
+#ifdef __BF16_SUPPORTED__
+typedef __bf16 bfloat16x4_t __attribute__((vector_size(8)));
+typedef __bf16 bfloat16x8_t __attribute__((vector_size(16)));
+typedef __bf16 bfloat16x16_t __attribute__((vector_size(32)));
+typedef __bf16 bfloat16x32_t __attribute__((vector_size(64)));
+#endif
 
 // Test structures containing fixed-length vectors
 typedef struct {

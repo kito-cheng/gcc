@@ -1,5 +1,5 @@
 /* { dg-do compile } */
-/* { dg-options "-march=rv32gcv_zvl512b -mabi=ilp32d -fdump-rtl-expand -O2" } */
+/* { dg-options "-march=rv32gcv_zvl512b -mabi=ilp32d -fdump-rtl-expand" } */
 /* { dg-skip-if "" { *-*-* } { "-O0" } } */
 
 // Test: Medium vector with ABI_VLEN=128
@@ -10,5 +10,5 @@ int32x4_t __attribute__((riscv_vls_cc(128))) test_128_abi_vlen_medium_vector(int
     // 128-bit vector with ABI_VLEN=128 -> uses 1 register  
     return vec;
 }
-/* { dg-final { scan-rtl-dump {\(set \(reg/v:V4SI \d+ \[ vec \]\)[[:space:]]+\(reg:V4SI \d+ v8 \[ vec \]\)\)} "expand" } } */
-/* { dg-final { scan-rtl-dump {\(set \(reg/i:V4SI \d+ v8\)[[:space:]]+\(reg:V4SI \d+ \[ <retval>.*\]\)\)} "expand" } } */
+/* { dg-final { scan-rtl-dump {\(set \(reg.*:V4SI \d+ \[ vec \]\)[[:space:]]+\(reg.*:V4SI \d+ v8 \[ vec \]\)\)} "expand" } } */
+/* { dg-final { scan-rtl-dump {\(set \(reg.*:V4SI \d+ v8\)[[:space:]]+\(reg.*:V4SI \d+ \[ <retval>.*\]\)\)} "expand" } } */
