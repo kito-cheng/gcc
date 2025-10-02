@@ -3026,3 +3026,18 @@
 
     DONE;
   });
+
+(define_expand "udot_prod<mode><vqdot_ele_mode>"
+  [(set (match_operand:VLS_VQDOT 0 "register_operand" "=vr")
+	(plus:VLS_VQDOT
+	  (mult:VLS_VQDOT
+	    (zero_extend:VLS_VQDOT (match_operand:<VQDOT_ELE_MODE> 1 "register_operand" "vr"))
+	    (zero_extend:VLS_VQDOT (match_operand:<VQDOT_ELE_MODE> 2 "register_operand" "vr")))
+	(match_operand:VLS_VQDOT 3 "register_operand" "0")))]
+  "TARGET_VECTOR"
+  {
+    insn_code icode = code_for_vqdotu (<MODE>mode);
+    rtx ops[] = {operands[0], operands[1], operands[2], operands[3]};
+    riscv_vector::emit_vlmax_insn (icode, riscv_vector::QDOT_OP, ops);
+    DONE;
+  })

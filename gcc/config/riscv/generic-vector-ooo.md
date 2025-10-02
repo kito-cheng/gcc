@@ -117,7 +117,7 @@
 ;; Vector reduction.
 (define_insn_reservation "vec_reduction" 8
   (and (eq_attr "tune" "generic_ooo,generic")
-       (eq_attr "type" "vired,viwred,vfredu,vfwredu"))
+       (eq_attr "type" "vired,viwred,vfredu,vfwredu,vqdot"))
   "vxu_ooo_issue,vxu_ooo_multicycle")
 
 ;; Vector ordered reduction, assume the latency number is for

@@ -118,6 +118,8 @@
   UNSPEC_WREDUC_SUM_UNORDERED_VL0_SAFE
   UNSPEC_SELECT_MASK
 
+  UNSPEC_VQDOT
+
   UNSPEC_SF_VFNRCLIP
   UNSPEC_SF_VFNRCLIPU
   UNSPEC_SF_CV
@@ -5039,3 +5041,33 @@
   (V32DI "V32HI") (V64DI "V64HI") (V128DI "V128HI") (V256DI "V256HI")
   (V512DI "V512HI")
 ])
+
+(define_mode_iterator VLS_VQDOT [
+  RVVM1SI
+  RVVM2SI
+  RVVM4SI
+  RVVM8SI
+  V1SI
+  V2SI
+  V4SI
+])
+
+(define_mode_attr VQDOT_ELE_MODE [
+  (RVVM1SI "RVVM1QI")
+  (RVVM2SI "RVVM2QI")
+  (RVVM4SI "RVVM4QI")
+  (RVVM8SI "RVVM8QI")
+  (V1SI "V4QI")
+  (V2SI "V8QI")
+  (V4SI "V16QI")]
+)
+
+(define_mode_attr vqdot_ele_mode [
+  (RVVM1SI "rvvm1qi")
+  (RVVM2SI "rvvm2qi")
+  (RVVM4SI "rvvm4qi")
+  (RVVM8SI "rvvm8qi")
+  (V1SI "v4qi")
+  (V2SI "v8qi")
+  (V4SI "v16qi")]
+)
