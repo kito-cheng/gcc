@@ -44,10 +44,28 @@ along with GCC; see the file COPYING3.  If not see
 #define RISCV_NR_HWPROBE		258
 
 /* hwprobe keys, likewise a stable kernel ABI.  */
-#define RISCV_HWPROBE_KEY_BASE_BEHAVIOR	3
-#define RISCV_HWPROBE_BASE_BEHAVIOR_IMA	(1ULL << 0)
-#define RISCV_HWPROBE_KEY_IMA_EXT_0	4
-#define RISCV_HWPROBE_KEY_IMA_EXT_1	16
+#define RISCV_HWPROBE_KEY_MVENDORID		0
+#define RISCV_HWPROBE_KEY_MARCHID		1
+#define RISCV_HWPROBE_KEY_MIMPID		2
+#define RISCV_HWPROBE_KEY_BASE_BEHAVIOR		3
+#define RISCV_HWPROBE_BASE_BEHAVIOR_IMA		(1ULL << 0)
+#define RISCV_HWPROBE_KEY_IMA_EXT_0		4
+#define RISCV_HWPROBE_KEY_ZICBOZ_BLOCK_SIZE	6
+#define RISCV_HWPROBE_KEY_ZICBOM_BLOCK_SIZE	12
+#define RISCV_HWPROBE_KEY_IMA_EXT_1		16
+
+/* The handful of IMA_EXT_0 bits this file needs to test directly rather
+   than just turn into an extension name.  */
+#define RISCV_HWPROBE_IMA_V			(1ULL << 2)
+#define RISCV_HWPROBE_EXT_ZICBOZ		(1ULL << 6)
+#define RISCV_HWPROBE_EXT_ZVE32X		(1ULL << 37)
+#define RISCV_HWPROBE_EXT_ZVE64X		(1ULL << 39)
+#define RISCV_HWPROBE_EXT_ZICBOM		(1ULL << 55)
+
+/* Any of these means the machine can execute vector instructions.  */
+#define RISCV_HWPROBE_ANY_VECTOR					\
+  (RISCV_HWPROBE_IMA_V | RISCV_HWPROBE_EXT_ZVE32X			\
+   | RISCV_HWPROBE_EXT_ZVE64X)
 
 /* Flags for the fourth field of RISCV_HWPROBE_EXT.  */
 #define RISCV_HWPROBE_XLEN32		(1U << 0)
@@ -71,6 +89,25 @@ struct riscv_hwprobe_ext
 static const struct riscv_hwprobe_ext riscv_hwprobe_exts[] = {
 #define RISCV_HWPROBE_EXT(NAME, KEY, BIT, FLAGS) { NAME, KEY, BIT, FLAGS },
 #include "riscv-hwprobe.def"
+};
+
+/* One entry per core we can recognise from its identification registers.  */
+
+struct riscv_core_id
+{
+  const char *name;
+  unsigned long long mvendorid;
+  unsigned long long marchid;
+  unsigned long long mimpid;
+};
+
+/* Matches whatever the hardware reports for that register.  */
+#define RISCV_CORE_ID_ANY (~0ULL)
+
+static const struct riscv_core_id riscv_core_ids[] = {
+#define RISCV_CORE_ID(NAME, MVENDORID, MARCHID, MIMPID)			\
+  { NAME, MVENDORID, MARCHID, MIMPID },
+#include "riscv-cores.def"
 };
 
 /* Issue a five argument syscall.  Doing this by hand rather than through
@@ -155,6 +192,33 @@ riscv_hwprobe_value (const struct riscv_hwprobe *pairs, size_t npairs,
   return 0;
 }
 
+/* Append the Zvl extension describing this machine's vector register
+   width to ISA.  Neither hwprobe nor /proc/cpuinfo reports VLEN, so the
+   vlenb CSR is the only place it can be read.  Doing so needs the vector
+   unit enabled, which Linux only does lazily, but its illegal instruction
+   handler recognises a read of CSR_VLENB and enables it, so having
+   established that the machine has vectors at all is guard enough.  */
+
+static void
+riscv_add_vlen (std::string &isa)
+{
+  unsigned long vlenb;
+  unsigned long vlen;
+  char buf[32];
+
+  /* Spelled numerically because not every assembler knows the name.  */
+  __asm__ volatile ("csrr %0, 0xc22" : "=r" (vlenb));
+
+  vlen = vlenb * 8;
+
+  /* A valid VLEN is a power of two, at least 32 and at most 65536.  */
+  if (vlen < 32 || vlen > 65536 || (vlen & (vlen - 1)) != 0)
+    return;
+
+  snprintf (buf, sizeof (buf), "_zvl%lub", vlen);
+  isa += buf;
+}
+
 /* Build the ISA string of the CPU we are running on, or return NULL if it
    cannot be determined.  */
 
@@ -164,9 +228,13 @@ riscv_native_arch (void)
   struct riscv_hwprobe pairs[] = {
     { RISCV_HWPROBE_KEY_BASE_BEHAVIOR, 0 },
     { RISCV_HWPROBE_KEY_IMA_EXT_0, 0 },
-    { RISCV_HWPROBE_KEY_IMA_EXT_1, 0 }
+    { RISCV_HWPROBE_KEY_IMA_EXT_1, 0 },
+    { RISCV_HWPROBE_KEY_ZICBOZ_BLOCK_SIZE, 0 },
+    { RISCV_HWPROBE_KEY_ZICBOM_BLOCK_SIZE, 0 }
   };
   size_t npairs = ARRAY_SIZE (pairs);
+  unsigned long long ima0;
+  bool have_zicboz, have_zicbom, zic64b;
 
   if (!riscv_hwprobe (pairs, npairs))
     return NULL;
@@ -201,13 +269,91 @@ riscv_native_arch (void)
 	}
     }
 
+  ima0 = riscv_hwprobe_value (pairs, npairs, RISCV_HWPROBE_KEY_IMA_EXT_0);
+
+  /* Zic64b promises that every cache block acted on by Zicbom, Zicbop and
+     Zicboz is 64 bytes wide, which is what lets memset expand to cbo.zero.
+     The kernel reports the two block sizes it knows about separately, so
+     claim Zic64b only when each one that applies really is 64.  */
+  have_zicboz = (ima0 & RISCV_HWPROBE_EXT_ZICBOZ) != 0;
+  have_zicbom = (ima0 & RISCV_HWPROBE_EXT_ZICBOM) != 0;
+  zic64b = have_zicboz || have_zicbom;
+
+  if (have_zicboz
+      && riscv_hwprobe_value (pairs, npairs,
+			      RISCV_HWPROBE_KEY_ZICBOZ_BLOCK_SIZE) != 64)
+    zic64b = false;
+  if (have_zicbom
+      && riscv_hwprobe_value (pairs, npairs,
+			      RISCV_HWPROBE_KEY_ZICBOM_BLOCK_SIZE) != 64)
+    zic64b = false;
+
+  if (zic64b)
+    isa += "_zic64b";
+
+  if (ima0 & RISCV_HWPROBE_ANY_VECTOR)
+    riscv_add_vlen (isa);
+
   return xstrdup (isa.c_str ());
+}
+
+/* Return the -mtune= option naming the core we are running on, or NULL if
+   it is not one we have hardware identification for.  */
+
+static const char *
+riscv_native_tune (void)
+{
+  struct riscv_hwprobe pairs[] = {
+    { RISCV_HWPROBE_KEY_MVENDORID, 0 },
+    { RISCV_HWPROBE_KEY_MARCHID, 0 },
+    { RISCV_HWPROBE_KEY_MIMPID, 0 }
+  };
+  size_t npairs = ARRAY_SIZE (pairs);
+  unsigned long long mvendorid, marchid, mimpid;
+
+  if (!riscv_hwprobe (pairs, npairs))
+    return NULL;
+
+  mvendorid = riscv_hwprobe_value (pairs, npairs,
+				   RISCV_HWPROBE_KEY_MVENDORID);
+  marchid = riscv_hwprobe_value (pairs, npairs, RISCV_HWPROBE_KEY_MARCHID);
+  mimpid = riscv_hwprobe_value (pairs, npairs, RISCV_HWPROBE_KEY_MIMPID);
+
+  /* The kernel answers -1 for a register it cannot pin down to one value,
+     which is what happens when the query spans cores that disagree.  It
+     should not happen for the single CPU asked about here, but an
+     all-ones vendor or architecture ID does not name a real core either.  */
+  if (mvendorid == ~0ULL || marchid == ~0ULL)
+    return NULL;
+
+  for (size_t i = 0; i < ARRAY_SIZE (riscv_core_ids); i++)
+    {
+      const struct riscv_core_id *core = &riscv_core_ids[i];
+
+      if (core->mvendorid != RISCV_CORE_ID_ANY
+	  && core->mvendorid != mvendorid)
+	continue;
+      if (core->marchid != RISCV_CORE_ID_ANY && core->marchid != marchid)
+	continue;
+      if (core->mimpid != RISCV_CORE_ID_ANY && core->mimpid != mimpid)
+	continue;
+
+      return concat ("-mtune=", core->name, NULL);
+    }
+
+  return NULL;
 }
 
 #else /* !__linux__ */
 
 static const char *
 riscv_native_arch (void)
+{
+  return NULL;
+}
+
+static const char *
+riscv_native_tune (void)
 {
   return NULL;
 }
@@ -234,6 +380,9 @@ host_detect_local_cpu (int argc, const char **argv)
 
       return concat ("-march=", isa, NULL);
     }
+
+  if (strcmp (argv[0], "tune") == 0)
+    return riscv_native_tune ();
 
   return NULL;
 }

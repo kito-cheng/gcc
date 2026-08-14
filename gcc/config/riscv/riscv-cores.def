@@ -237,3 +237,34 @@ RISCV_CORE("spacemit-a100",   "rva23u64_zfh_zbc_zbkc_zfbfmin_smepmp_smnpm_"
 
 #undef RISCV_CORE
 #undef RISCV_CORE_ALIAS
+
+/* This is a list of the hardware identification registers of cores that
+   implement RISC-V, used by -mtune=native to recognise the core it is
+   running on.
+
+   Before using #include to read this file, define a macro:
+
+      RISCV_CORE_ID(CORE_NAME, MVENDORID, MARCHID, MIMPID)
+
+   CORE_NAME is the name of a core listed above, represented as a string.
+   MVENDORID, MARCHID and MIMPID are the values the core reports in the
+   registers of those names.  Any of the three can be RISCV_CORE_ID_ANY,
+   which the reader must define, to match whatever the hardware says; that
+   is the usual thing to do for MIMPID, which tends to change between
+   revisions of the same core.
+
+   Only add an entry once the values have been read off the hardware.  A
+   wrong entry is worse than a missing one: a missing entry falls back on
+   the default tuning, whereas a wrong one silently tunes for something
+   else.  */
+
+#ifndef RISCV_CORE_ID
+#define RISCV_CORE_ID(CORE_NAME, MVENDORID, MARCHID, MIMPID)
+#endif
+
+RISCV_CORE_ID ("spacemit-x100", 0x710, 0x8000000058000002ULL,
+	       RISCV_CORE_ID_ANY)
+RISCV_CORE_ID ("spacemit-a100", 0x710, 0x8000000041000002ULL,
+	       RISCV_CORE_ID_ANY)
+
+#undef RISCV_CORE_ID
