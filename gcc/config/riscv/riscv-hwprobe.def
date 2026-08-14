@@ -1,0 +1,109 @@
+/* Mapping from Linux riscv_hwprobe extension bits to extension names.
+   Copyright (C) 2026 Free Software Foundation, Inc.
+
+This file is part of GCC.
+
+GCC is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 3, or (at your option)
+any later version.
+
+GCC is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with GCC; see the file COPYING3.  If not see
+<http://www.gnu.org/licenses/>.  */
+
+/* Before using #include to read this file, define a macro:
+
+      RISCV_HWPROBE_EXT (NAME, KEY, BIT, FLAGS)
+
+   NAME is the extension name as it appears in an ISA string.
+   KEY is the hwprobe key whose value holds the bit.
+   BIT is the bit position within that value.
+   FLAGS is a bitmask of RISCV_HWPROBE_XLEN32 and friends, or 0.
+
+   The key numbers and bit positions are a stable Linux ABI, mirroring
+   <asm/hwprobe.h>.  They are replicated here so that the driver depends
+   neither on the kernel headers nor on a glibc new enough to provide
+   <sys/hwprobe.h>.
+
+   RISCV_HWPROBE_IMA_FD covers both F and D, so bit 0 of IMA_EXT_0 gets two
+   entries.  Extensions implied by others are listed anyway; the ISA string
+   parser removes the redundancy.  */
+
+RISCV_HWPROBE_EXT ("f",		RISCV_HWPROBE_KEY_IMA_EXT_0,  0, 0)
+RISCV_HWPROBE_EXT ("d",		RISCV_HWPROBE_KEY_IMA_EXT_0,  0, 0)
+RISCV_HWPROBE_EXT ("c",		RISCV_HWPROBE_KEY_IMA_EXT_0,  1, 0)
+RISCV_HWPROBE_EXT ("v",		RISCV_HWPROBE_KEY_IMA_EXT_0,  2, 0)
+RISCV_HWPROBE_EXT ("zba",	RISCV_HWPROBE_KEY_IMA_EXT_0,  3, 0)
+RISCV_HWPROBE_EXT ("zbb",	RISCV_HWPROBE_KEY_IMA_EXT_0,  4, 0)
+RISCV_HWPROBE_EXT ("zbs",	RISCV_HWPROBE_KEY_IMA_EXT_0,  5, 0)
+RISCV_HWPROBE_EXT ("zicboz",	RISCV_HWPROBE_KEY_IMA_EXT_0,  6, 0)
+RISCV_HWPROBE_EXT ("zbc",	RISCV_HWPROBE_KEY_IMA_EXT_0,  7, 0)
+RISCV_HWPROBE_EXT ("zbkb",	RISCV_HWPROBE_KEY_IMA_EXT_0,  8, 0)
+RISCV_HWPROBE_EXT ("zbkc",	RISCV_HWPROBE_KEY_IMA_EXT_0,  9, 0)
+RISCV_HWPROBE_EXT ("zbkx",	RISCV_HWPROBE_KEY_IMA_EXT_0, 10, 0)
+RISCV_HWPROBE_EXT ("zknd",	RISCV_HWPROBE_KEY_IMA_EXT_0, 11, 0)
+RISCV_HWPROBE_EXT ("zkne",	RISCV_HWPROBE_KEY_IMA_EXT_0, 12, 0)
+RISCV_HWPROBE_EXT ("zknh",	RISCV_HWPROBE_KEY_IMA_EXT_0, 13, 0)
+RISCV_HWPROBE_EXT ("zksed",	RISCV_HWPROBE_KEY_IMA_EXT_0, 14, 0)
+RISCV_HWPROBE_EXT ("zksh",	RISCV_HWPROBE_KEY_IMA_EXT_0, 15, 0)
+RISCV_HWPROBE_EXT ("zkt",	RISCV_HWPROBE_KEY_IMA_EXT_0, 16, 0)
+RISCV_HWPROBE_EXT ("zvbb",	RISCV_HWPROBE_KEY_IMA_EXT_0, 17, 0)
+RISCV_HWPROBE_EXT ("zvbc",	RISCV_HWPROBE_KEY_IMA_EXT_0, 18, 0)
+RISCV_HWPROBE_EXT ("zvkb",	RISCV_HWPROBE_KEY_IMA_EXT_0, 19, 0)
+RISCV_HWPROBE_EXT ("zvkg",	RISCV_HWPROBE_KEY_IMA_EXT_0, 20, 0)
+RISCV_HWPROBE_EXT ("zvkned",	RISCV_HWPROBE_KEY_IMA_EXT_0, 21, 0)
+RISCV_HWPROBE_EXT ("zvknha",	RISCV_HWPROBE_KEY_IMA_EXT_0, 22, 0)
+RISCV_HWPROBE_EXT ("zvknhb",	RISCV_HWPROBE_KEY_IMA_EXT_0, 23, 0)
+RISCV_HWPROBE_EXT ("zvksed",	RISCV_HWPROBE_KEY_IMA_EXT_0, 24, 0)
+RISCV_HWPROBE_EXT ("zvksh",	RISCV_HWPROBE_KEY_IMA_EXT_0, 25, 0)
+RISCV_HWPROBE_EXT ("zvkt",	RISCV_HWPROBE_KEY_IMA_EXT_0, 26, 0)
+RISCV_HWPROBE_EXT ("zfh",	RISCV_HWPROBE_KEY_IMA_EXT_0, 27, 0)
+RISCV_HWPROBE_EXT ("zfhmin",	RISCV_HWPROBE_KEY_IMA_EXT_0, 28, 0)
+RISCV_HWPROBE_EXT ("zihintntl",	RISCV_HWPROBE_KEY_IMA_EXT_0, 29, 0)
+RISCV_HWPROBE_EXT ("zvfh",	RISCV_HWPROBE_KEY_IMA_EXT_0, 30, 0)
+RISCV_HWPROBE_EXT ("zvfhmin",	RISCV_HWPROBE_KEY_IMA_EXT_0, 31, 0)
+RISCV_HWPROBE_EXT ("zfa",	RISCV_HWPROBE_KEY_IMA_EXT_0, 32, 0)
+RISCV_HWPROBE_EXT ("ztso",	RISCV_HWPROBE_KEY_IMA_EXT_0, 33, 0)
+RISCV_HWPROBE_EXT ("zacas",	RISCV_HWPROBE_KEY_IMA_EXT_0, 34, 0)
+RISCV_HWPROBE_EXT ("zicond",	RISCV_HWPROBE_KEY_IMA_EXT_0, 35, 0)
+RISCV_HWPROBE_EXT ("zihintpause", RISCV_HWPROBE_KEY_IMA_EXT_0, 36, 0)
+RISCV_HWPROBE_EXT ("zve32x",	RISCV_HWPROBE_KEY_IMA_EXT_0, 37, 0)
+RISCV_HWPROBE_EXT ("zve32f",	RISCV_HWPROBE_KEY_IMA_EXT_0, 38, 0)
+RISCV_HWPROBE_EXT ("zve64x",	RISCV_HWPROBE_KEY_IMA_EXT_0, 39, 0)
+RISCV_HWPROBE_EXT ("zve64f",	RISCV_HWPROBE_KEY_IMA_EXT_0, 40, 0)
+RISCV_HWPROBE_EXT ("zve64d",	RISCV_HWPROBE_KEY_IMA_EXT_0, 41, 0)
+RISCV_HWPROBE_EXT ("zimop",	RISCV_HWPROBE_KEY_IMA_EXT_0, 42, 0)
+RISCV_HWPROBE_EXT ("zca",	RISCV_HWPROBE_KEY_IMA_EXT_0, 43, 0)
+RISCV_HWPROBE_EXT ("zcb",	RISCV_HWPROBE_KEY_IMA_EXT_0, 44, 0)
+RISCV_HWPROBE_EXT ("zcd",	RISCV_HWPROBE_KEY_IMA_EXT_0, 45, 0)
+RISCV_HWPROBE_EXT ("zcf",	RISCV_HWPROBE_KEY_IMA_EXT_0, 46,
+		   RISCV_HWPROBE_XLEN32)
+RISCV_HWPROBE_EXT ("zcmop",	RISCV_HWPROBE_KEY_IMA_EXT_0, 47, 0)
+RISCV_HWPROBE_EXT ("zawrs",	RISCV_HWPROBE_KEY_IMA_EXT_0, 48, 0)
+RISCV_HWPROBE_EXT ("supm",	RISCV_HWPROBE_KEY_IMA_EXT_0, 49, 0)
+RISCV_HWPROBE_EXT ("zicntr",	RISCV_HWPROBE_KEY_IMA_EXT_0, 50, 0)
+RISCV_HWPROBE_EXT ("zihpm",	RISCV_HWPROBE_KEY_IMA_EXT_0, 51, 0)
+RISCV_HWPROBE_EXT ("zfbfmin",	RISCV_HWPROBE_KEY_IMA_EXT_0, 52, 0)
+RISCV_HWPROBE_EXT ("zvfbfmin",	RISCV_HWPROBE_KEY_IMA_EXT_0, 53, 0)
+RISCV_HWPROBE_EXT ("zvfbfwma",	RISCV_HWPROBE_KEY_IMA_EXT_0, 54, 0)
+RISCV_HWPROBE_EXT ("zicbom",	RISCV_HWPROBE_KEY_IMA_EXT_0, 55, 0)
+RISCV_HWPROBE_EXT ("zaamo",	RISCV_HWPROBE_KEY_IMA_EXT_0, 56, 0)
+RISCV_HWPROBE_EXT ("zalrsc",	RISCV_HWPROBE_KEY_IMA_EXT_0, 57, 0)
+RISCV_HWPROBE_EXT ("zabha",	RISCV_HWPROBE_KEY_IMA_EXT_0, 58, 0)
+RISCV_HWPROBE_EXT ("zalasr",	RISCV_HWPROBE_KEY_IMA_EXT_0, 59, 0)
+RISCV_HWPROBE_EXT ("zicbop",	RISCV_HWPROBE_KEY_IMA_EXT_0, 60, 0)
+RISCV_HWPROBE_EXT ("zilsd",	RISCV_HWPROBE_KEY_IMA_EXT_0, 61,
+		   RISCV_HWPROBE_XLEN32)
+RISCV_HWPROBE_EXT ("zclsd",	RISCV_HWPROBE_KEY_IMA_EXT_0, 62,
+		   RISCV_HWPROBE_XLEN32)
+RISCV_HWPROBE_EXT ("zicfilp",	RISCV_HWPROBE_KEY_IMA_EXT_0, 63, 0)
+
+RISCV_HWPROBE_EXT ("zicfiss",	RISCV_HWPROBE_KEY_IMA_EXT_1,  0, 0)
+
+#undef RISCV_HWPROBE_EXT
