@@ -29,6 +29,9 @@ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
 #ifndef __NR_riscv_hwprobe
 #define __NR_riscv_hwprobe 258
 #endif
+#ifndef __NR_getcpu
+#define __NR_getcpu 168
+#endif
 
 enum {
 #define RISCV_HWPROBE_KEY(NAME, VALUE) RISCV_HWPROBE_KEY_##NAME = VALUE,
