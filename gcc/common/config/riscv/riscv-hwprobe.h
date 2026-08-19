@@ -33,6 +33,9 @@ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
 enum {
 #define RISCV_HWPROBE_KEY(NAME, VALUE) RISCV_HWPROBE_KEY_##NAME = VALUE,
 #include "common/config/riscv/riscv-hwprobe.def"
+#define RISCV_HWPROBE_EXT(NAME, UPPERCASE_NAME, KEY, BIT, XLEN) \
+  RISCV_HWPROBE_EXT_##UPPERCASE_NAME = (1ULL << BIT),
+#include "common/config/riscv/riscv-hwprobe.def"
 };
 
 #define RISCV_HWPROBE_BASE_BEHAVIOR_IMA (1ULL << 0)
